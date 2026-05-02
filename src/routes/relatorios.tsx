@@ -28,8 +28,8 @@ function RelatoriosPage() {
   const range = useMemo(() => {
     const now = new Date();
     if (period === "custom") {
-      const s = new Date(startDate); s.setHours(0, 0, 0, 0);
-      const e = new Date(endDate); e.setHours(23, 59, 59, 999);
+      const s = new Date(startDate + "T00:00:00");
+      const e = new Date(endDate + "T23:59:59");
       return { start: s, end: e };
     }
     const s = new Date(now);
@@ -60,10 +60,12 @@ function RelatoriosPage() {
     if (period === "day") {
       const now = new Date();
       for (let i = 23; i >= 0; i--) {
-        const d = new Date(now); d.setHours(now.getHours() - i, 0, 0, 0);
+        const d = new Date(now.getTime() - i * 3600000);
         const hour = d.getHours();
-        const dayKey = d.toISOString().slice(0, 10);
-        const ds = data.sales.filter((s) => s.date.slice(0, 10) === dayKey && new Date(s.date).getHours() === hour);
+        const ds = data.sales.filter((s) => {
+          const sDate = new Date(s.date);
+          return sDate.getDate() === d.getDate() && sDate.getHours() === hour;
+        });
         arr.push({ label: hour.toString().padStart(2, "0") + "h", receita: ds.reduce((a, x) => a + x.total, 0), vendas: ds.length });
       }
       return arr;

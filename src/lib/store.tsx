@@ -134,6 +134,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         quantity: Number(s.quantity),
         unitPrice: Number(s.unit_price),
         total: Number(s.total),
+        paymentMethod: s.payment_method || "Dinheiro",
         date: s.date
       })) || d.sales,
       transactions: resTx.data?.map((t: any) => ({
@@ -238,6 +239,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         p_quantity: s.quantity,
         p_unit_price: s.unitPrice,
         p_date: s.date,
+        p_payment_method: s.paymentMethod || "Dinheiro",
         p_created_by: userData.user?.id || null
       });
       
@@ -251,8 +253,14 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   }, [data.customers, syncData]);
 
   const removeSale = useCallback(async (sid: string) => {
-    await supabase.from('sales').delete().eq('id', sid);
-    await syncData();
+    try {
+      // Deletar da tabela sales (os lançamentos financeiros vinculados caem no ON DELETE CASCADE configurado no DDL)
+      const { error } = await supabase.from('sales').delete().eq('id', sid);
+      if (error) throw error;
+      await syncData();
+    } catch (err) {
+      console.error("Erro ao excluir venda:", err);
+    }
   }, [syncData]);
 
   const updateSettings = useCallback(async (s: Partial<Settings>) => {

@@ -71,6 +71,7 @@ function VendasPage() {
                 <th className="p-3 font-medium text-center">Qtd</th>
                 <th className="p-3 font-medium text-right">Unit.</th>
                 <th className="p-3 font-medium text-right">Total</th>
+                <th className="p-3 font-medium">Pagamento</th>
                 <th className="p-3"></th>
               </tr>
             </thead>
@@ -88,6 +89,9 @@ function VendasPage() {
                   <td className="p-3 text-center">{s.quantity}</td>
                   <td className="p-3 text-right">{formatBRL(s.unitPrice)}</td>
                   <td className="p-3 text-right font-semibold text-success">{formatBRL(s.total)}</td>
+                  <td className="p-3">
+                    <span className="text-xs px-2 py-1 rounded-full bg-muted font-medium">{s.paymentMethod}</span>
+                  </td>
                   <td className="p-3 text-right">
                     <button onClick={() => { removeSale(s.id); toast.success("Venda removida"); }} className="text-muted-foreground hover:text-destructive">
                       <Trash2 className="h-4 w-4" />
@@ -122,6 +126,7 @@ function NewSaleDialog({ onClose, onSave }: { onClose: () => void; onSave: (s: a
   const [unitPrice, setUnitPrice] = useState("");
   const [client, setClient] = useState("");
   const [customerId, setCustomerId] = useState("");
+  const [paymentMethod, setPaymentMethod] = useState("PIX");
 
   const onSelectStock = (id: string) => {
     setStockItemId(id);
@@ -150,6 +155,7 @@ function NewSaleDialog({ onClose, onSave }: { onClose: () => void; onSave: (s: a
       quantity: q,
       unitPrice: p,
       client: customerName || undefined,
+      paymentMethod,
     });
   };
 
@@ -158,7 +164,10 @@ function NewSaleDialog({ onClose, onSave }: { onClose: () => void; onSave: (s: a
   return (
     <div className="fixed inset-0 z-50 bg-foreground/30 flex items-center justify-center p-4" onClick={onClose}>
       <form onSubmit={submit} onClick={(e) => e.stopPropagation()} className="w-full max-w-md bg-card rounded-2xl p-6 space-y-4 border border-border">
-        <h3 className="text-lg font-semibold">Nova venda</h3>
+        <div className="flex justify-between items-center">
+          <h3 className="text-lg font-semibold">Nova venda</h3>
+          <button type="button" onClick={onClose} className="text-2xl leading-none text-muted-foreground hover:text-foreground">×</button>
+        </div>
         <div>
           <label className="text-sm font-medium">Data</label>
           <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="mt-1 w-full h-10 px-3 rounded-lg border border-input bg-background" />
@@ -204,6 +213,15 @@ function NewSaleDialog({ onClose, onSave }: { onClose: () => void; onSave: (s: a
               className="mt-2 w-full h-10 px-3 rounded-lg border border-input bg-background"
             />
           )}
+        </div>
+        <div>
+          <label className="text-sm font-medium">Forma de Pagamento</label>
+          <select value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)} className="mt-1 w-full h-10 px-3 rounded-lg border border-input bg-background">
+            <option value="PIX">PIX</option>
+            <option value="Dinheiro">Dinheiro</option>
+            <option value="Cartão de Crédito">Cartão de Crédito</option>
+            <option value="Cartão de Débito">Cartão de Débito</option>
+          </select>
         </div>
         <div className="text-right text-sm text-muted-foreground">
           Total: <span className="font-semibold text-foreground">{formatBRL((parseFloat(unitPrice) || 0) * (parseInt(quantity) || 0))}</span>
