@@ -36,7 +36,7 @@ function LoginPage() {
     <div className="min-h-screen grid md:grid-cols-2 bg-background">
       <div className="hidden md:flex bg-[image:var(--gradient-primary)] text-primary-foreground p-12 flex-col justify-between">
         <div className="flex items-center gap-3">
-          <img src="/logo.png" alt="Mundo 3D LAB" className="h-12 object-contain" />
+          <img src="/logo.png" alt="Mundo 3D LAB" className="h-12 object-contain rounded-lg shadow-sm" />
         </div>
         <div className="space-y-4">
           <h1 className="text-4xl font-bold leading-tight">
@@ -54,7 +54,7 @@ function LoginPage() {
       <div className="flex items-center justify-center p-6 md:p-12">
         <form onSubmit={onSubmit} className="w-full max-w-sm space-y-6">
           <div className="md:hidden flex items-center gap-3 mb-4">
-            <img src="/logo.png" alt="Mundo 3D LAB" className="h-10 object-contain" />
+            <img src="/logo.png" alt="Mundo 3D LAB" className="h-10 object-contain rounded-lg" />
           </div>
           <div>
             <h2 className="text-2xl font-bold">Entrar</h2>
