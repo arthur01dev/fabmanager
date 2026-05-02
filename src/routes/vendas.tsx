@@ -100,7 +100,15 @@ function VendasPage() {
         </div>
       </div>
 
-      {open && <NewSaleDialog onClose={() => setOpen(false)} onSave={(s) => { addSale(s); toast.success("Venda registrada"); setOpen(false); }} />}
+      {open && <NewSaleDialog onClose={() => setOpen(false)} onSave={async (s) => { 
+        const res = await addSale(s); 
+        if (res?.ok) {
+          toast.success("Venda registrada"); 
+          setOpen(false); 
+        } else {
+          toast.error("Erro ao registrar: " + res?.error);
+        }
+      }} />}
     </>
   );
 }

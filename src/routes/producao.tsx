@@ -89,7 +89,15 @@ function ProducaoPage() {
                   <CheckCircle2 className="h-4 w-4" /> Finalizar
                 </button>
               )}
-              <button onClick={() => removeProduction(p.id)} className="h-9 px-3 rounded-lg border border-input text-muted-foreground hover:text-destructive">
+              <button 
+                onClick={async () => { 
+                  if (confirm("Excluir esta peça em produção?")) {
+                    await removeProduction(p.id); 
+                    toast.success("Peça removida"); 
+                  }
+                }} 
+                className="h-9 px-3 rounded-lg border border-input text-muted-foreground hover:text-destructive"
+              >
                 <Trash2 className="h-4 w-4" />
               </button>
             </div>
@@ -97,7 +105,11 @@ function ProducaoPage() {
         ))}
       </div>
 
-      {open && <NewProductionDialog onClose={() => setOpen(false)} onSave={(p) => { addProduction(p); toast.success("Peça adicionada · estoque de filamento atualizado"); setOpen(false); }} />}
+      {open && <NewProductionDialog onClose={() => setOpen(false)} onSave={async (p) => { 
+        await addProduction(p); 
+        toast.success("Peça adicionada · estoque de filamento atualizado"); 
+        setOpen(false); 
+      }} />}
     </>
   );
 }

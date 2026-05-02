@@ -152,15 +152,22 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   }, [syncData]);
 
   const addTransaction = useCallback(async (t: Omit<Transaction, "id">) => {
-    await supabase.from('transactions').insert({
-      id: crypto.randomUUID(),
-      type: t.type,
-      category: t.category,
-      description: t.description,
-      amount: t.amount,
-      date: t.date,
-    });
-    await syncData();
+    try {
+      const { error } = await supabase.from('transactions').insert({
+        id: crypto.randomUUID(),
+        type: t.type,
+        category: t.category,
+        description: t.description,
+        amount: t.amount,
+        date: t.date,
+      });
+      if (error) throw error;
+      await syncData();
+      return { ok: true };
+    } catch (err: any) {
+      console.error(err);
+      return { ok: false, error: err.message };
+    }
   }, [syncData]);
 
   const removeTransaction = useCallback(async (tid: string) => {
@@ -212,25 +219,34 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   }, [syncData]);
 
   const removeProduction = useCallback(async (pid: string) => {
+    // Primeiro remove os vínculos de filamento para evitar erro de FK
+    await supabase.from('production_filament_usage').delete().eq('production_item_id', pid);
     await supabase.from('production_items').delete().eq('id', pid);
     await syncData();
   }, [syncData]);
 
   const addSale = useCallback(async (s: Omit<Sale, "id" | "total">) => {
-    const custId = data.customers.find(c => c.name === s.client)?.id || null;
-    const { data: userData } = await supabase.auth.getUser();
+    try {
+      const custId = data.customers.find(c => c.name === s.client)?.id || null;
+      const { data: userData } = await supabase.auth.getUser();
 
-    await supabase.rpc('register_sale', {
-      p_stock_item_id: s.stockItemId || null,
-      p_customer_id: custId,
-      p_product_name: s.productName,
-      p_quantity: s.quantity,
-      p_unit_price: s.unitPrice,
-      p_date: s.date,
-      p_created_by: userData.user?.id || null
-    });
-    
-    await syncData();
+      const { error } = await supabase.rpc('register_sale', {
+        p_stock_item_id: s.stockItemId || null,
+        p_customer_id: custId,
+        p_product_name: s.productName,
+        p_quantity: s.quantity,
+        p_unit_price: s.unitPrice,
+        p_date: s.date,
+        p_created_by: userData.user?.id || null
+      });
+      
+      if (error) throw error;
+      await syncData();
+      return { ok: true };
+    } catch (err: any) {
+      console.error(err);
+      return { ok: false, error: err.message };
+    }
   }, [data.customers, syncData]);
 
   const removeSale = useCallback(async (sid: string) => {

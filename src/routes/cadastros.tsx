@@ -370,9 +370,19 @@ function FilamentDialog({ initial, onClose, onSave }: any) {
           </div>
           <div>
             <label className="text-sm font-medium">Cor</label>
-            <div className="mt-1 flex items-center gap-2">
-              <input type="color" value={color} onChange={(e) => setColor(e.target.value)} className="h-10 w-14 rounded-lg border border-input bg-background" />
-              <input value={color} onChange={(e) => setColor(e.target.value)} className="flex-1 h-10 px-3 rounded-lg border border-input bg-background" />
+            <div className="mt-1 flex items-center gap-0 border border-input rounded-lg overflow-hidden bg-background focus-within:ring-1 focus-within:ring-ring">
+              <input 
+                type="color" 
+                value={color} 
+                onChange={(e) => setColor(e.target.value)} 
+                className="h-10 w-12 border-0 p-1 bg-transparent cursor-pointer" 
+              />
+              <div className="w-px h-6 bg-border mx-1" />
+              <input 
+                value={color} 
+                onChange={(e) => setColor(e.target.value)} 
+                className="flex-1 h-10 px-2 border-0 bg-transparent text-sm focus:outline-none" 
+              />
             </div>
           </div>
         </div>
