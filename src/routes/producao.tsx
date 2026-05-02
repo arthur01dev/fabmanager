@@ -16,8 +16,12 @@ export const Route = createFileRoute("/producao")({
 });
 
 function ProducaoPage() {
-  const { data, addProduction, updateProductionStatus, removeProduction } = useStore();
+  const { data, updateProductionStatus, removeProduction } = useStore();
   const [open, setOpen] = useState(false);
+
+  const activeProduction = useMemo(() => {
+    return data.production.filter(p => p.status === "em_producao");
+  }, [data.production]);
 
   return (
     <>
@@ -32,12 +36,12 @@ function ProducaoPage() {
       />
 
       <div className="grid md:grid-cols-2 gap-4">
-        {data.production.length === 0 && (
+        {activeProduction.length === 0 && (
           <div className="md:col-span-2 bg-card border border-border rounded-2xl p-10 text-center text-muted-foreground">
             Nenhuma peça em produção. Clique em "Nova peça" para começar.
           </div>
         )}
-        {data.production.map((p) => (
+        {activeProduction.map((p) => (
           <div key={p.id} className="bg-card rounded-2xl p-5 border border-border shadow-[var(--shadow-soft)]">
             <div className="flex items-start justify-between gap-2">
               <div>

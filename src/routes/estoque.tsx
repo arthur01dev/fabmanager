@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { Protected } from "@/components/layout/Protected";
 import { PageHeader } from "@/components/layout/AppLayout";
 import { useStore, formatBRL } from "@/lib/store";
-import { Package } from "lucide-react";
+import { Package, Trash2 } from "lucide-react";
 
 export const Route = createFileRoute("/estoque")({
   component: () => (
@@ -13,7 +13,7 @@ export const Route = createFileRoute("/estoque")({
 });
 
 function EstoquePage() {
-  const { data } = useStore();
+  const { data, removeStockItem } = useStore();
   const items = data.stock.filter((i) => i.quantity > 0);
   const totalValue = items.reduce((s, i) => s + i.quantity * i.suggestedPrice, 0);
 
@@ -48,6 +48,7 @@ function EstoquePage() {
                 <th className="p-3 font-medium text-right">Custo</th>
                 <th className="p-3 font-medium text-right">Preço sugerido</th>
                 <th className="p-3 font-medium text-right">Margem</th>
+                <th className="p-3"></th>
               </tr>
             </thead>
             <tbody>

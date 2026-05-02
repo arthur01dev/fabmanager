@@ -47,12 +47,16 @@ function RelatoriosPage() {
     const txs = data.transactions.filter((t) => inRange(t.date));
 
     const totalSales = sales.length;
-    const revenue = sales.reduce((s, x) => s + x.total, 0);
-    const ticket = totalSales > 0 ? revenue / totalSales : 0;
+    const salesRevenue = sales.reduce((s, x) => s + x.total, 0);
+    const manualIncome = txs.filter(t => t.type === 'entrada' && !t.sale_id).reduce((s, t) => s + t.amount, 0);
+    
+    const totalRevenue = salesRevenue + manualIncome;
+    const ticket = totalSales > 0 ? salesRevenue / totalSales : 0;
     const expenses = txs.filter((t) => t.type === "saida").reduce((s, t) => s + t.amount, 0);
-    const grossProfit = revenue;
-    const netProfit = revenue - expenses;
-    return { totalSales, revenue, ticket, grossProfit, netProfit, expenses };
+    
+    const grossProfit = totalRevenue;
+    const netProfit = totalRevenue - expenses;
+    return { totalSales, revenue: totalRevenue, ticket, grossProfit, netProfit, expenses };
   }, [data, range]);
 
   const series = useMemo(() => {

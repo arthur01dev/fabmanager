@@ -254,12 +254,23 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   const removeSale = useCallback(async (sid: string) => {
     try {
-      // Deletar da tabela sales (os lançamentos financeiros vinculados caem no ON DELETE CASCADE configurado no DDL)
       const { error } = await supabase.from('sales').delete().eq('id', sid);
       if (error) throw error;
       await syncData();
     } catch (err) {
       console.error("Erro ao excluir venda:", err);
+    }
+  }, [syncData]);
+
+  const removeStockItem = useCallback(async (id: string) => {
+    try {
+      const { error } = await supabase.from('stock_items').delete().eq('id', id);
+      if (error) throw error;
+      await syncData();
+      toast.success("Item removido do estoque");
+    } catch (err) {
+      console.error("Erro ao excluir item do estoque:", err);
+      toast.error("Erro ao excluir item");
     }
   }, [syncData]);
 
@@ -377,6 +388,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         addTransaction, removeTransaction,
         addProduction, updateProductionStatus, removeProduction,
         addSale, removeSale,
+        removeStockItem,
         updateSettings,
         addFilament, updateFilament, removeFilament,
         addCustomer, updateCustomer, removeCustomer,
