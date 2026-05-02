@@ -48,7 +48,7 @@ function RelatoriosPage() {
 
     const totalSales = sales.length;
     const salesRevenue = sales.reduce((s, x) => s + x.total, 0);
-    const manualIncome = txs.filter(t => t.type === 'entrada' && !t.sale_id).reduce((s, t) => s + t.amount, 0);
+    const manualIncome = txs.filter(t => t.type === 'entrada' && !t.saleId).reduce((s, t) => s + t.amount, 0);
     
     const totalRevenue = salesRevenue + manualIncome;
     const ticket = totalSales > 0 ? salesRevenue / totalSales : 0;

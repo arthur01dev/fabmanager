@@ -63,7 +63,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       supabase.from('production_items').select('*, production_filament_usage(*)').order('created_at', { ascending: false }),
       supabase.from('stock_items').select('*').order('created_at', { ascending: false }),
       supabase.from('sales').select('*').order('created_at', { ascending: false }),
-      supabase.from('transactions').select('*').order('date', { ascending: false })
+      supabase.from('financial_entries').select('*').order('created_at', { ascending: false })
     ]);
 
     const custName = (id: any) => resCustomers.data?.find((c: any) => c.id === id)?.name;
@@ -139,11 +139,12 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       })) || d.sales,
       transactions: resTx.data?.map((t: any) => ({
         id: t.id,
-        date: t.date,
-        type: t.type,
+        date: t.created_at,
+        type: t.type === 'income' ? 'entrada' : 'saida',
         category: t.category,
         description: t.description,
-        amount: Number(t.amount)
+        amount: Number(t.amount),
+        saleId: t.sale_id
       })) || d.transactions,
     }));
   }, []);
@@ -154,14 +155,13 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   const addTransaction = useCallback(async (t: Omit<Transaction, "id">) => {
     try {
-      const { error } = await supabase.from('transactions').insert({
-        id: crypto.randomUUID(),
-        type: t.type,
+      const { error } = await supabase.from('financial_entries').insert({
+        type: t.type === 'entrada' ? 'income' : 'expense',
         category: t.category,
         description: t.description,
         amount: t.amount,
-        date: t.date,
-        sale_id: null // Explicitamente null para evitar erro de FK
+        created_at: t.date,
+        sale_id: null
       });
       if (error) throw error;
       await syncData();
@@ -173,7 +173,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   }, [syncData]);
 
   const removeTransaction = useCallback(async (tid: string) => {
-    await supabase.from('transactions').delete().eq('id', tid);
+    await supabase.from('financial_entries').delete().eq('id', tid);
     await syncData();
   }, [syncData]);
 
@@ -212,7 +212,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   }, [data.customers, syncData]);
 
   const updateProductionStatus = useCallback(async (pid: string, status: ProductionItem["status"]) => {
-    if (status === 'finalizado') {
+    if (status === 'completed') {
        await supabase.rpc('finalize_production', { p_production_id: pid });
     } else {
        await supabase.from('production_items').update({ status }).eq('id', pid);

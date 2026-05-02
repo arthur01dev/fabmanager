@@ -20,7 +20,7 @@ function ProducaoPage() {
   const [open, setOpen] = useState(false);
 
   const activeProduction = useMemo(() => {
-    return data.production.filter(p => p.status === "em_producao");
+    return data.production.filter(p => p.status === "in_progress");
   }, [data.production]);
 
   return (
@@ -48,8 +48,8 @@ function ProducaoPage() {
                 <h4 className="font-semibold">{p.name}</h4>
                 {p.client && <p className="text-sm text-muted-foreground">Cliente: {p.client}</p>}
               </div>
-              <span className={`text-xs px-2 py-1 rounded-full font-medium ${p.status === "finalizado" ? "bg-success/15 text-success" : "bg-warning/20 text-warning-foreground"}`}>
-                {p.status === "finalizado" ? "Finalizado" : "Em produção"}
+              <span className={`text-xs px-2 py-1 rounded-full font-medium ${p.status === "completed" ? "bg-success/15 text-success" : "bg-warning/20 text-warning-foreground"}`}>
+                {p.status === "completed" ? "Finalizado" : "Em produção"}
               </span>
             </div>
             <div className="grid grid-cols-2 gap-3 text-sm mt-4">
@@ -88,8 +88,8 @@ function ProducaoPage() {
               </div>
             )}
             <div className="flex gap-2 mt-4">
-              {p.status !== "finalizado" && (
-                <button onClick={() => { updateProductionStatus(p.id, "finalizado"); toast.success("Peça finalizada e enviada ao estoque"); }} className="flex-1 h-9 rounded-lg bg-success text-success-foreground text-sm font-medium flex items-center justify-center gap-1">
+              {p.status !== "completed" && (
+                <button onClick={() => { updateProductionStatus(p.id, "completed"); toast.success("Peça finalizada e enviada ao estoque"); }} className="flex-1 h-9 rounded-lg bg-success text-success-foreground text-sm font-medium flex items-center justify-center gap-1">
                   <CheckCircle2 className="h-4 w-4" /> Finalizar
                 </button>
               )}
@@ -181,7 +181,7 @@ function NewProductionDialog({ onClose, onSave }: { onClose: () => void; onSave:
     onSave({
       name,
       client: client || undefined,
-      status: "em_producao",
+      status: "in_progress",
       startDate,
       estimatedHours: hours,
       filaments: validFils,
