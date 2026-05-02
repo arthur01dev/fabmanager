@@ -356,7 +356,10 @@ function FilamentDialog({ initial, onClose, onSave }: any) {
   return (
     <div className="fixed inset-0 z-50 bg-foreground/30 flex items-center justify-center p-4" onClick={onClose}>
       <form onSubmit={submit} onClick={(e) => e.stopPropagation()} className="w-full max-w-md bg-card rounded-2xl p-6 space-y-4 border border-border">
-        <h3 className="text-lg font-semibold">{initial ? "Editar filamento" : "Novo filamento"}</h3>
+        <div className="flex justify-between items-center mb-2">
+          <h3 className="text-lg font-semibold">{initial ? "Editar filamento" : "Novo filamento"}</h3>
+          <button type="button" onClick={onClose} className="text-2xl leading-none text-muted-foreground hover:text-foreground">×</button>
+        </div>
         <div>
           <label className="text-sm font-medium">Nome</label>
           <input required value={name} onChange={(e) => setName(e.target.value)} placeholder="Ex: PLA Preto" className="mt-1 w-full h-10 px-3 rounded-lg border border-input bg-background" />
@@ -418,7 +421,10 @@ function SimpleDialog({ title, fields, onClose, onSave }: any) {
   return (
     <div className="fixed inset-0 z-50 bg-foreground/30 flex items-center justify-center p-4" onClick={onClose}>
       <form onSubmit={submit} onClick={(e) => e.stopPropagation()} className="w-full max-w-md bg-card rounded-2xl p-6 space-y-4 border border-border">
-        <h3 className="text-lg font-semibold">{title}</h3>
+        <div className="flex justify-between items-center mb-2">
+          <h3 className="text-lg font-semibold">{title}</h3>
+          <button type="button" onClick={onClose} className="text-2xl leading-none text-muted-foreground hover:text-foreground">×</button>
+        </div>
         {fields.map((f: any) => (
           <div key={f.key}>
             <label className="text-sm font-medium">{f.label}{f.required && " *"}</label>

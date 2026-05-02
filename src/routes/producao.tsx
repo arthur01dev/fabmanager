@@ -190,7 +190,10 @@ function NewProductionDialog({ onClose, onSave }: { onClose: () => void; onSave:
   return (
     <div className="fixed inset-0 z-50 bg-foreground/30 flex items-center justify-center p-4" onClick={onClose}>
       <form onSubmit={submit} onClick={(e) => e.stopPropagation()} className="w-full max-w-lg bg-card rounded-2xl p-6 space-y-4 border border-border max-h-[92vh] overflow-y-auto">
-        <h3 className="text-lg font-semibold">Nova peça em produção</h3>
+        <div className="flex justify-between items-center mb-2">
+          <h3 className="text-lg font-semibold">Nova peça em produção</h3>
+          <button type="button" onClick={onClose} className="text-2xl leading-none text-muted-foreground hover:text-foreground">×</button>
+        </div>
         <div>
           <label className="text-sm font-medium">Nome da peça</label>
           <input required value={name} onChange={(e) => setName(e.target.value)} className="mt-1 w-full h-10 px-3 rounded-lg border border-input bg-background" />

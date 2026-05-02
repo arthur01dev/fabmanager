@@ -18,7 +18,7 @@ import { useAuth } from "@/lib/auth";
 import { cn } from "@/lib/utils";
 
 const nav = [
-  { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { to: "/dashboard", label: "Painel", icon: LayoutDashboard },
   { to: "/financeiro", label: "Financeiro", icon: Wallet },
   { to: "/producao", label: "Produção", icon: Factory },
   { to: "/estoque", label: "Estoque", icon: Boxes },

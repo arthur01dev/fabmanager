@@ -156,7 +156,10 @@ function NewTxDialog({ onClose, onSave }: { onClose: () => void; onSave: (t: any
   return (
     <div className="fixed inset-0 z-50 bg-foreground/30 flex items-center justify-center p-4" onClick={onClose}>
       <form onSubmit={submit} onClick={(e) => e.stopPropagation()} className="w-full max-w-md bg-card rounded-2xl p-6 space-y-4 border border-border shadow-[var(--shadow-card)]">
-        <h3 className="text-lg font-semibold">Novo lançamento</h3>
+        <div className="flex justify-between items-center mb-2">
+          <h3 className="text-lg font-semibold">Novo lançamento</h3>
+          <button type="button" onClick={onClose} className="text-2xl leading-none text-muted-foreground hover:text-foreground">×</button>
+        </div>
 
         <div className="grid grid-cols-2 gap-2">
           <button type="button" onClick={() => setType("entrada")} className={`h-10 rounded-lg border text-sm font-medium ${type === "entrada" ? "border-success bg-success/10 text-success" : "border-input"}`}>Entrada</button>

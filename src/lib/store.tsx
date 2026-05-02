@@ -160,6 +160,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         description: t.description,
         amount: t.amount,
         date: t.date,
+        sale_id: null // Explicitamente null para evitar erro de FK
       });
       if (error) throw error;
       await syncData();
@@ -283,7 +284,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       grams: f.grams,
       price_per_gram: f.pricePerGram || null
     });
-  }, []);
+    await syncData(); // Garante persistência no reload
+  }, [syncData]);
   const updateFilament = useCallback(async (fid: string, patch: Partial<FilamentStock>) => {
     setData((d) => ({ ...d, filaments: d.filaments.map((f) => (f.id === fid ? { ...f, ...patch } : f)) }));
     const payload: any = {};
@@ -313,7 +315,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       notes: c.notes || null,
       created_at: createdAt
     });
-  }, []);
+    await syncData();
+  }, [syncData]);
   const updateCustomer = useCallback(async (cid: string, patch: Partial<Customer>) => {
     setData((d) => ({ ...d, customers: d.customers.map((c) => (c.id === cid ? { ...c, ...patch } : c)) }));
     const payload: any = {};
@@ -341,7 +344,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       notes: s.notes || null,
       created_at: createdAt
     });
-  }, []);
+    await syncData();
+  }, [syncData]);
   const updateSupplier = useCallback(async (sid: string, patch: Partial<Supplier>) => {
     setData((d) => ({ ...d, suppliers: d.suppliers.map((s) => (s.id === sid ? { ...s, ...patch } : s)) }));
     const payload: any = {};
