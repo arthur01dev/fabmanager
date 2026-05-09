@@ -5,33 +5,37 @@ import type {
   FilamentStock, Customer, Supplier, FilamentUsage,
 } from "./types";
 
-
-
-const id = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
-
 interface StoreCtx {
   data: AppData;
-  addTransaction: (t: Omit<Transaction, "id">) => void | Promise<void>;
-  removeTransaction: (id: string) => void | Promise<void>;
-  addProduction: (p: Omit<ProductionItem, "id">) => void | Promise<void>;
-  updateProductionStatus: (id: string, status: ProductionItem["status"]) => void | Promise<void>;
-  removeProduction: (id: string) => void | Promise<void>;
-  addSale: (s: Omit<Sale, "id" | "total">) => void | Promise<void>;
-  removeSale: (id: string) => void | Promise<void>;
-  updateSettings: (s: Partial<Settings>) => void | Promise<void>;
-  addFilament: (f: Omit<FilamentStock, "id">) => void | Promise<void>;
-  updateFilament: (id: string, patch: Partial<FilamentStock>) => void | Promise<void>;
-  removeFilament: (id: string) => void | Promise<void>;
-  addCustomer: (c: Omit<Customer, "id" | "createdAt">) => void | Promise<void>;
-  updateCustomer: (id: string, patch: Partial<Customer>) => void | Promise<void>;
-  removeCustomer: (id: string) => void | Promise<void>;
-  addSupplier: (s: Omit<Supplier, "id" | "createdAt">) => void | Promise<void>;
-  updateSupplier: (id: string, patch: Partial<Supplier>) => void | Promise<void>;
-  removeSupplier: (id: string) => void | Promise<void>;
+  addTransaction: (t: Omit<Transaction, "id">) => Promise<void>;
+  removeTransaction: (id: string) => Promise<void>;
+  addProduction: (p: Omit<ProductionItem, "id">) => Promise<void>;
+  updateProductionStatus: (id: string, status: ProductionItem["status"]) => Promise<void>;
+  removeProduction: (id: string) => Promise<void>;
+  addSale: (s: Omit<Sale, "id" | "total">) => Promise<void>;
+  removeSale: (id: string) => Promise<void>;
+  removeStockItem: (id: string) => Promise<void>;
+  updateSettings: (s: Partial<Settings>) => Promise<void>;
+  addFilament: (f: Omit<FilamentStock, "id">) => Promise<void>;
+  updateFilament: (id: string, patch: Partial<FilamentStock>) => Promise<void>;
+  removeFilament: (id: string) => Promise<void>;
+  addCustomer: (c: Omit<Customer, "id" | "createdAt">) => Promise<void>;
+  updateCustomer: (id: string, patch: Partial<Customer>) => Promise<void>;
+  removeCustomer: (id: string) => Promise<void>;
+  addSupplier: (s: Omit<Supplier, "id" | "createdAt">) => Promise<void>;
+  updateSupplier: (id: string, patch: Partial<Supplier>) => Promise<void>;
+  removeSupplier: (id: string) => Promise<void>;
   resetAll: () => void;
 }
 
 const StoreContext = createContext<StoreCtx | null>(null);
+
+const defaultSettings: Settings = {
+  hourlyRate: 0.10,
+  filamentPricePerGram: 0.12,
+  marginPct: 100,
+  extraCost: 0,
+};
 
 export function StoreProvider({ children }: { children: ReactNode }) {
   const [data, setData] = useState<AppData>({
@@ -39,74 +43,61 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     production: [],
     stock: [],
     sales: [],
-    settings: {
-      hourlyRate: 5,
-      filamentPricePerGram: 0.12,
-      marginPct: 100,
-      extraCost: 0,
-    },
+    settings: defaultSettings,
     filaments: [],
     customers: [],
     suppliers: [],
   });
-  const [loaded, setLoaded] = useState(false);
   const [settingsId, setSettingsId] = useState<string | null>(null);
 
   const syncData = useCallback(async () => {
-    const { data: sData, error } = await supabase.from('settings').select('*').limit(1).single();
-    if (!error && sData) setSettingsId(sData.id);
+    const { data: sData } = await supabase.from("settings").select("*").limit(1).single();
+    if (sData) setSettingsId(sData.id);
 
-    const [resSuppliers, resCustomers, resFilaments, resProd, resStock, resSales, resTx] = await Promise.all([
-      supabase.from('suppliers').select('*').order('created_at', { ascending: false }),
-      supabase.from('customers').select('*').order('created_at', { ascending: false }),
-      supabase.from('filaments').select('*').order('created_at', { ascending: false }),
-      supabase.from('production_items').select('*, production_filament_usage(*)').order('created_at', { ascending: false }),
-      supabase.from('stock_items').select('*').order('created_at', { ascending: false }),
-      supabase.from('sales').select('*').order('created_at', { ascending: false }),
-      supabase.from('financial_entries').select('*').order('created_at', { ascending: false })
-    ]);
+    const [resSuppliers, resCustomers, resFilaments, resProd, resStock, resSales, resTx] =
+      await Promise.all([
+        supabase.from("suppliers").select("*").order("created_at", { ascending: false }),
+        supabase.from("customers").select("*").order("created_at", { ascending: false }),
+        supabase.from("filaments").select("*").order("created_at", { ascending: false }),
+        supabase.from("production_items").select("*, production_filament_usage(*)").order("created_at", { ascending: false }),
+        supabase.from("stock_items").select("*").order("created_at", { ascending: false }),
+        supabase.from("sales").select("*").order("created_at", { ascending: false }),
+        supabase.from("transactions").select("*").order("created_at", { ascending: false }), // CORRIGIDO: era 'financial_entries'
+      ]);
 
-    const custName = (id: any) => resCustomers.data?.find((c: any) => c.id === id)?.name;
+    const custName = (cid: any) => resCustomers.data?.find((c: any) => c.id === cid)?.name;
 
-    setData(d => ({
-      settings: sData ? {
-        hourlyRate: sData.hourly_rate,
-        filamentPricePerGram: sData.filament_price_per_gram,
-        marginPct: sData.margin_pct,
-        extraCost: sData.extra_cost,
-      } : d.settings,
-      suppliers: resSuppliers.data?.map(s => ({
-        id: s.id,
-        name: s.name,
-        contact: s.contact || undefined,
-        email: s.email || undefined,
-        notes: s.notes || undefined,
-        createdAt: s.created_at,
-      })) || d.suppliers,
-      customers: resCustomers.data?.map(c => ({
-        id: c.id,
-        name: c.name,
-        contact: c.contact || undefined,
-        email: c.email || undefined,
-        notes: c.notes || undefined,
-        createdAt: c.created_at,
-      })) || d.customers,
-      filaments: resFilaments.data?.map(f => ({
-        id: f.id,
+    setData({
+      settings: sData
+        ? {
+            hourlyRate: Number(sData.hourly_rate),
+            filamentPricePerGram: Number(sData.filament_price_per_gram),
+            marginPct: Number(sData.margin_pct),
+            extraCost: Number(sData.extra_cost),
+          }
+        : defaultSettings,
+      suppliers: resSuppliers.data?.map((s: any) => ({
+        id: s.id, name: s.name,
+        contact: s.contact || undefined, email: s.email || undefined,
+        notes: s.notes || undefined, createdAt: s.created_at,
+      })) || [],
+      customers: resCustomers.data?.map((c: any) => ({
+        id: c.id, name: c.name,
+        contact: c.contact || undefined, email: c.email || undefined,
+        notes: c.notes || undefined, createdAt: c.created_at,
+      })) || [],
+      filaments: resFilaments.data?.map((f: any) => ({
+        id: f.id, name: f.name,
         supplierId: f.supplier_id || undefined,
-        name: f.name,
-        type: f.type,
-        color: f.color,
+        type: f.type, color: f.color,
         grams: Number(f.grams),
         pricePerGram: f.price_per_gram ? Number(f.price_per_gram) : undefined,
-      })) || d.filaments,
+      })) || [],
       production: resProd.data?.map((p: any) => ({
-        id: p.id,
-        name: p.name,
+        id: p.id, name: p.name,
         client: custName(p.customer_id),
         status: p.status,
-        startDate: p.start_date,
-        endDate: p.end_date || undefined,
+        startDate: p.start_date, endDate: p.end_date || undefined,
         estimatedHours: Number(p.estimated_hours),
         filamentGrams: Number(p.filament_grams_total),
         productionCost: Number(p.production_cost),
@@ -114,74 +105,68 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         filaments: p.production_filament_usage?.map((u: any) => ({
           filamentId: u.filament_id || undefined,
           name: u.filament_name,
-          grams: Number(u.grams)
-        })) || []
-      })) || d.production,
+          grams: Number(u.grams),
+        })) || [],
+      })) || [],
       stock: resStock.data?.map((s: any) => ({
-        id: s.id,
-        name: s.name,
+        id: s.id, name: s.name,
         quantity: Number(s.quantity),
         filamentGrams: Number(s.filament_grams),
         estimatedHours: Number(s.estimated_hours),
         productionCost: Number(s.production_cost),
-        suggestedPrice: Number(s.suggested_price)
-      })) || d.stock,
+        suggestedPrice: Number(s.suggested_price),
+      })) || [],
       sales: resSales.data?.map((s: any) => ({
         id: s.id,
         stockItemId: s.stock_item_id || undefined,
+        customerId: s.customer_id || undefined,
         productName: s.product_name,
         client: custName(s.customer_id),
         quantity: Number(s.quantity),
         unitPrice: Number(s.unit_price),
         total: Number(s.total),
-        paymentMethod: s.payment_method || "Dinheiro",
-        date: s.date
-      })) || d.sales,
+        date: s.date,
+      })) || [],
       transactions: resTx.data?.map((t: any) => ({
         id: t.id,
-        date: t.created_at,
-        type: t.type === 'income' ? 'entrada' : 'saida',
+        date: t.date,                          // CORRIGIDO: era t.created_at
+        type: t.type as "entrada" | "saida",   // CORRIGIDO: era conversão income/expense
         category: t.category,
         description: t.description,
         amount: Number(t.amount),
-        saleId: t.sale_id
-      })) || d.transactions,
-    }));
+      })) || [],
+    });
   }, []);
 
   useEffect(() => {
     syncData();
   }, [syncData]);
 
+  // ── FINANCEIRO ──────────────────────────────────────────────────
   const addTransaction = useCallback(async (t: Omit<Transaction, "id">) => {
-    try {
-      const { error } = await supabase.from('financial_entries').insert({
-        type: t.type === 'entrada' ? 'income' : 'expense',
-        category: t.category,
-        description: t.description,
-        amount: t.amount,
-        created_at: t.date,
-        sale_id: null
-      });
-      if (error) throw error;
-      await syncData();
-      return { ok: true };
-    } catch (err: any) {
-      console.error(err);
-      return { ok: false, error: err.message };
-    }
-  }, [syncData]);
-
-  const removeTransaction = useCallback(async (tid: string) => {
-    await supabase.from('financial_entries').delete().eq('id', tid);
+    const { error } = await supabase.from("transactions").insert({ // CORRIGIDO: era 'financial_entries'
+      type: t.type,          // CORRIGIDO: mantém 'entrada'/'saida', não converte
+      category: t.category,
+      description: t.description,
+      amount: t.amount,
+      date: t.date,          // CORRIGIDO: era created_at
+      sale_id: null,
+    });
+    if (error) throw error;
     await syncData();
   }, [syncData]);
 
+  const removeTransaction = useCallback(async (tid: string) => {
+    await supabase.from("transactions").delete().eq("id", tid); // CORRIGIDO: era 'financial_entries'
+    await syncData();
+  }, [syncData]);
+
+  // ── PRODUÇÃO ─────────────────────────────────────────────────────
   const addProduction = useCallback(async (p: Omit<ProductionItem, "id">) => {
     const newId = crypto.randomUUID();
-    const custId = data.customers.find(c => c.name === p.client)?.id || null;
+    const custId = data.customers.find((c) => c.name === p.client)?.id || null;
 
-    await supabase.from('production_items').insert({
+    const { error } = await supabase.from("production_items").insert({
       id: newId,
       customer_id: custId,
       name: p.name,
@@ -191,122 +176,96 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       estimated_hours: p.estimatedHours,
       filament_grams_total: p.filamentGrams,
       production_cost: p.productionCost,
-      suggested_price: p.suggestedPrice
+      suggested_price: p.suggestedPrice,
     });
+    if (error) throw error;
 
     if (p.filaments && p.filaments.length > 0) {
-      const usages = p.filaments.map(f => ({
+      const usages = p.filaments.map((f) => ({
         id: crypto.randomUUID(),
         production_item_id: newId,
         filament_id: f.filamentId || null,
         filament_name: f.name,
-        grams: f.grams
+        grams: f.grams,
       }));
-      await supabase.from('production_filament_usage').insert(usages);
-    }
-    
-    if (p.status === 'finalizado') {
-      await supabase.rpc('finalize_production', { p_production_id: newId });
+      await supabase.from("production_filament_usage").insert(usages);
     }
     await syncData();
   }, [data.customers, syncData]);
 
   const updateProductionStatus = useCallback(async (pid: string, status: ProductionItem["status"]) => {
-    if (status === 'completed') {
-       await supabase.rpc('finalize_production', { p_production_id: pid });
+    if (status === "finalizado") { // CORRIGIDO: era 'completed'
+      const { error } = await supabase.rpc("finalize_production", { p_production_id: pid });
+      if (error) throw error;
     } else {
-       await supabase.from('production_items').update({ status }).eq('id', pid);
+      await supabase.from("production_items").update({ status }).eq("id", pid);
     }
     await syncData();
   }, [syncData]);
 
   const removeProduction = useCallback(async (pid: string) => {
-    // Primeiro remove os vínculos de filamento para evitar erro de FK
-    await supabase.from('production_filament_usage').delete().eq('production_item_id', pid);
-    await supabase.from('production_items').delete().eq('id', pid);
+    await supabase.from("production_filament_usage").delete().eq("production_item_id", pid);
+    await supabase.from("production_items").delete().eq("id", pid);
     await syncData();
   }, [syncData]);
 
+  // ── VENDAS ───────────────────────────────────────────────────────
   const addSale = useCallback(async (s: Omit<Sale, "id" | "total">) => {
-    try {
-      const custId = data.customers.find(c => c.name === s.client)?.id || null;
-      const { data: userData } = await supabase.auth.getUser();
+    const { data: userData } = await supabase.auth.getUser();
+    const custId = s.customerId || data.customers.find((c) => c.name === s.client)?.id || null;
 
-      const { error } = await supabase.rpc('register_sale', {
-        p_stock_item_id: s.stockItemId || null,
-        p_customer_id: custId,
-        p_product_name: s.productName,
-        p_quantity: s.quantity,
-        p_unit_price: s.unitPrice,
-        p_date: s.date,
-        p_payment_method: s.paymentMethod || "Dinheiro",
-        p_created_by: userData.user?.id || null
-      });
-      
-      if (error) throw error;
-      await syncData();
-      return { ok: true };
-    } catch (err: any) {
-      console.error(err);
-      return { ok: false, error: err.message };
-    }
+    const { error } = await supabase.rpc("register_sale", {
+      p_stock_item_id: s.stockItemId || null,
+      p_customer_id: custId,
+      p_product_name: s.productName,
+      p_quantity: s.quantity,
+      p_unit_price: s.unitPrice,
+      p_date: s.date,
+      p_created_by: userData.user?.id || null,
+      // CORRIGIDO: removido p_payment_method que não existe na função RPC
+    });
+    if (error) throw error;
+    await syncData();
   }, [data.customers, syncData]);
 
   const removeSale = useCallback(async (sid: string) => {
-    try {
-      const { error } = await supabase.from('sales').delete().eq('id', sid);
-      if (error) throw error;
-      await syncData();
-    } catch (err) {
-      console.error("Erro ao excluir venda:", err);
-    }
+    await supabase.from("sales").delete().eq("id", sid);
+    await syncData();
   }, [syncData]);
 
-  const removeStockItem = useCallback(async (id: string) => {
-    try {
-      const { error } = await supabase.from('stock_items').delete().eq('id', id);
-      if (error) throw error;
-      await syncData();
-      toast.success("Item removido do estoque");
-    } catch (err) {
-      console.error("Erro ao excluir item do estoque:", err);
-      toast.error("Erro ao excluir item");
-    }
+  const removeStockItem = useCallback(async (itemId: string) => {
+    const { error } = await supabase.from("stock_items").delete().eq("id", itemId);
+    if (error) throw error;
+    await syncData();
   }, [syncData]);
 
+  // ── CONFIGURAÇÕES ────────────────────────────────────────────────
   const updateSettings = useCallback(async (s: Partial<Settings>) => {
-    // Atualização otimista
     setData((d) => ({ ...d, settings: { ...d.settings, ...s } }));
-
     if (!settingsId) return;
-
     const payload: any = {};
     if (s.hourlyRate !== undefined) payload.hourly_rate = s.hourlyRate;
     if (s.filamentPricePerGram !== undefined) payload.filament_price_per_gram = s.filamentPricePerGram;
     if (s.marginPct !== undefined) payload.margin_pct = s.marginPct;
     if (s.extraCost !== undefined) payload.extra_cost = s.extraCost;
     payload.updated_at = new Date().toISOString();
-
-    await supabase.from('settings').update(payload).eq('id', settingsId);
+    await supabase.from("settings").update(payload).eq("id", settingsId);
   }, [settingsId]);
 
+  // ── FILAMENTOS ───────────────────────────────────────────────────
   const addFilament = useCallback(async (f: Omit<FilamentStock, "id">) => {
-    const newId = crypto.randomUUID();
-    const newFilament: FilamentStock = { ...f, id: newId };
-    setData((d) => ({ ...d, filaments: [newFilament, ...d.filaments] }));
-    await supabase.from('filaments').insert({
-      id: newId,
+    const { error } = await supabase.from("filaments").insert({
+      id: crypto.randomUUID(),
       supplier_id: f.supplierId || null,
-      name: f.name,
-      type: f.type,
-      color: f.color,
+      name: f.name, type: f.type, color: f.color,
       grams: f.grams,
-      price_per_gram: f.pricePerGram || null
+      price_per_gram: f.pricePerGram || null,
     });
-    await syncData(); // Garante persistência no reload
+    if (error) throw error;
+    await syncData(); // CORRIGIDO: sem otimismo falso, só sincroniza após confirmar no banco
   }, [syncData]);
+
   const updateFilament = useCallback(async (fid: string, patch: Partial<FilamentStock>) => {
-    setData((d) => ({ ...d, filaments: d.filaments.map((f) => (f.id === fid ? { ...f, ...patch } : f)) }));
     const payload: any = {};
     if (patch.supplierId !== undefined) payload.supplier_id = patch.supplierId || null;
     if (patch.name !== undefined) payload.name = patch.name;
@@ -314,70 +273,70 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     if (patch.color !== undefined) payload.color = patch.color;
     if (patch.grams !== undefined) payload.grams = patch.grams;
     if (patch.pricePerGram !== undefined) payload.price_per_gram = patch.pricePerGram || null;
-    await supabase.from('filaments').update(payload).eq('id', fid);
-  }, []);
-  const removeFilament = useCallback(async (fid: string) => {
-    setData((d) => ({ ...d, filaments: d.filaments.filter((f) => f.id !== fid) }));
-    await supabase.from('filaments').delete().eq('id', fid);
-  }, []);
+    await supabase.from("filaments").update(payload).eq("id", fid);
+    await syncData();
+  }, [syncData]);
 
+  const removeFilament = useCallback(async (fid: string) => {
+    await supabase.from("filaments").delete().eq("id", fid);
+    await syncData();
+  }, [syncData]);
+
+  // ── CLIENTES ─────────────────────────────────────────────────────
   const addCustomer = useCallback(async (c: Omit<Customer, "id" | "createdAt">) => {
-    const newId = crypto.randomUUID();
-    const createdAt = new Date().toISOString();
-    const newCustomer: Customer = { ...c, id: newId, createdAt };
-    setData((d) => ({ ...d, customers: [newCustomer, ...d.customers] }));
-    await supabase.from('customers').insert({
-      id: newId,
+    const { error } = await supabase.from("customers").insert({
+      id: crypto.randomUUID(),
       name: c.name,
       contact: c.contact || null,
       email: c.email || null,
       notes: c.notes || null,
-      created_at: createdAt
     });
+    if (error) throw error;
     await syncData();
   }, [syncData]);
+
   const updateCustomer = useCallback(async (cid: string, patch: Partial<Customer>) => {
-    setData((d) => ({ ...d, customers: d.customers.map((c) => (c.id === cid ? { ...c, ...patch } : c)) }));
     const payload: any = {};
     if (patch.name !== undefined) payload.name = patch.name;
     if (patch.contact !== undefined) payload.contact = patch.contact || null;
     if (patch.email !== undefined) payload.email = patch.email || null;
     if (patch.notes !== undefined) payload.notes = patch.notes || null;
-    await supabase.from('customers').update(payload).eq('id', cid);
-  }, []);
-  const removeCustomer = useCallback(async (cid: string) => {
-    setData((d) => ({ ...d, customers: d.customers.filter((c) => c.id !== cid) }));
-    await supabase.from('customers').delete().eq('id', cid);
-  }, []);
+    await supabase.from("customers").update(payload).eq("id", cid);
+    await syncData();
+  }, [syncData]);
 
+  const removeCustomer = useCallback(async (cid: string) => {
+    await supabase.from("customers").delete().eq("id", cid);
+    await syncData();
+  }, [syncData]);
+
+  // ── FORNECEDORES ─────────────────────────────────────────────────
   const addSupplier = useCallback(async (s: Omit<Supplier, "id" | "createdAt">) => {
-    const newId = crypto.randomUUID();
-    const createdAt = new Date().toISOString();
-    const newSupplier: Supplier = { ...s, id: newId, createdAt };
-    setData((d) => ({ ...d, suppliers: [newSupplier, ...d.suppliers] }));
-    await supabase.from('suppliers').insert({
-      id: newId,
+    const { error } = await supabase.from("suppliers").insert({
+      id: crypto.randomUUID(),
       name: s.name,
       contact: s.contact || null,
       email: s.email || null,
       notes: s.notes || null,
-      created_at: createdAt
     });
+    if (error) throw error;
     await syncData();
   }, [syncData]);
+
   const updateSupplier = useCallback(async (sid: string, patch: Partial<Supplier>) => {
-    setData((d) => ({ ...d, suppliers: d.suppliers.map((s) => (s.id === sid ? { ...s, ...patch } : s)) }));
     const payload: any = {};
     if (patch.name !== undefined) payload.name = patch.name;
     if (patch.contact !== undefined) payload.contact = patch.contact || null;
     if (patch.email !== undefined) payload.email = patch.email || null;
     if (patch.notes !== undefined) payload.notes = patch.notes || null;
-    await supabase.from('suppliers').update(payload).eq('id', sid);
-  }, []);
+    await supabase.from("suppliers").update(payload).eq("id", sid);
+    await syncData();
+  }, [syncData]);
+
   const removeSupplier = useCallback(async (sid: string) => {
-    setData((d) => ({ ...d, suppliers: d.suppliers.filter((s) => s.id !== sid) }));
-    await supabase.from('suppliers').delete().eq('id', sid);
-  }, []);
+    await supabase.from("suppliers").delete().eq("id", sid);
+    await syncData();
+  }, [syncData]);
 
   const resetAll = useCallback(() => {}, []);
 
@@ -387,8 +346,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         data,
         addTransaction, removeTransaction,
         addProduction, updateProductionStatus, removeProduction,
-        addSale, removeSale,
-        removeStockItem,
+        addSale, removeSale, removeStockItem,
         updateSettings,
         addFilament, updateFilament, removeFilament,
         addCustomer, updateCustomer, removeCustomer,
@@ -410,7 +368,6 @@ export function useStore() {
 export const formatBRL = (n: number) =>
   n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
-// Converte horas decimais (ex: 2.4) — sempre tratado como decimal puro.
 export function formatHoursDecimal(h: number): string {
   if (!h || h <= 0) return "0h";
   const totalMin = Math.round(h * 60);
