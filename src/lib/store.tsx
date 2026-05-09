@@ -126,6 +126,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         unitPrice: Number(s.unit_price),
         total: Number(s.total),
         date: s.date,
+        paymentMethod: s.payment_method || undefined,
       })) || [],
       transactions: resTx.data?.map((t: any) => ({
         id: t.id,
@@ -221,8 +222,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       p_quantity: s.quantity,
       p_unit_price: s.unitPrice,
       p_date: s.date,
+      p_payment_method: s.paymentMethod || "PIX",
       p_created_by: userData.user?.id || null,
-      // CORRIGIDO: removido p_payment_method que não existe na função RPC
     });
     if (error) throw error;
     await syncData();

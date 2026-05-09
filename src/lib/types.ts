@@ -12,8 +12,8 @@ export interface Transaction {
 export type ProductionStatus = "em_producao" | "finalizado";
 
 export interface FilamentUsage {
-  filamentId?: string;   // ref ao estoque de filamento
-  name: string;          // tipo/cor (ex: "PLA Preto")
+  filamentId?: string;
+  name: string;
   grams: number;
 }
 
@@ -24,9 +24,9 @@ export interface ProductionItem {
   status: ProductionStatus;
   startDate: string;
   endDate?: string;
-  estimatedHours: number;        // horas decimais
-  filaments: FilamentUsage[];    // múltiplos filamentos
-  filamentGrams: number;         // soma total (compat)
+  estimatedHours: number;
+  filaments: FilamentUsage[];
+  filamentGrams: number;
   productionCost: number;
   suggestedPrice: number;
 }
@@ -43,11 +43,11 @@ export interface StockItem {
 
 export interface FilamentStock {
   id: string;
-  name: string;            // ex: "PLA Preto"
+  name: string;
   color?: string;
-  type?: string;           // PLA, PETG, ABS...
-  grams: number;           // quantidade em estoque (g)
-  pricePerGram?: number;   // custo (opcional, sobrepõe global)
+  type?: string;
+  grams: number;
+  pricePerGram?: number;
   supplierId?: string;
 }
 
@@ -61,6 +61,7 @@ export interface Sale {
   unitPrice: number;
   total: number;
   client?: string;
+  paymentMethod?: string;
 }
 
 export interface Customer {

@@ -3,7 +3,7 @@ import { Protected } from "@/components/layout/Protected";
 import { PageHeader } from "@/components/layout/AppLayout";
 import { useStore, formatBRL } from "@/lib/store";
 import { useMemo, useState } from "react";
-import { Plus, Trash2, Users, Truck, Boxes, Pencil } from "lucide-react";
+import { Plus, Trash2, Users, Truck, Boxes, Pencil, Search } from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/cadastros")({
@@ -57,6 +57,17 @@ function ClientesTab() {
   const { data, addCustomer, removeCustomer } = useStore();
   const [open, setOpen] = useState(false);
   const [selected, setSelected] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
+
+  const filtered = useMemo(() => {
+    const q = search.toLowerCase().trim();
+    if (!q) return data.customers;
+    return data.customers.filter(c =>
+      c.name.toLowerCase().includes(q) ||
+      (c.contact || "").toLowerCase().includes(q) ||
+      (c.email || "").toLowerCase().includes(q)
+    );
+  }, [data.customers, search]);
 
   const stats = useMemo(() => {
     const map = new Map<string, { count: number; total: number; products: string[] }>();
@@ -77,7 +88,16 @@ function ClientesTab() {
 
   return (
     <>
-      <div className="flex justify-end mb-3">
+      <div className="flex justify-between items-center gap-3 mb-3">
+        <div className="relative flex-1 max-w-xs">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Pesquisar clientes..."
+            className="w-full h-9 pl-9 pr-3 rounded-lg border border-input bg-background text-sm"
+          />
+        </div>
         <button onClick={() => setOpen(true)} className="h-10 px-4 rounded-lg bg-primary text-primary-foreground text-sm font-medium flex items-center gap-2 shadow-[var(--shadow-elegant)]">
           <Plus className="h-4 w-4" /> Novo cliente
         </button>
@@ -96,10 +116,12 @@ function ClientesTab() {
               </tr>
             </thead>
             <tbody>
-              {data.customers.length === 0 && (
-                <tr><td colSpan={5} className="p-10 text-center text-muted-foreground">Nenhum cliente cadastrado.</td></tr>
+              {filtered.length === 0 && (
+                <tr><td colSpan={5} className="p-10 text-center text-muted-foreground">
+                  {search ? `Nenhum cliente encontrado para "${search}".` : "Nenhum cliente cadastrado."}
+                </td></tr>
               )}
-              {data.customers.map((c) => {
+              {filtered.map((c) => {
                 const st = stats.get(c.id);
                 return (
                   <tr key={c.id} onClick={() => setSelected(c.id)} className={`border-t border-border cursor-pointer hover:bg-muted/30 ${selected === c.id ? "bg-primary/5" : ""}`}>
@@ -165,7 +187,15 @@ function ClientesTab() {
             { key: "notes", label: "Observações", textarea: true },
           ]}
           onClose={() => setOpen(false)}
-          onSave={(v: any) => { addCustomer(v); toast.success("Cliente cadastrado"); setOpen(false); }}
+          onSave={async (v: any) => {
+            try {
+              await addCustomer(v);
+              toast.success("Cliente cadastrado");
+              setOpen(false);
+            } catch (err: any) {
+              toast.error("Erro: " + err.message);
+            }
+          }}
         />
       )}
     </>
@@ -176,10 +206,30 @@ function ClientesTab() {
 function FornecedoresTab() {
   const { data, addSupplier, removeSupplier } = useStore();
   const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState("");
+
+  const filtered = useMemo(() => {
+    const q = search.toLowerCase().trim();
+    if (!q) return data.suppliers;
+    return data.suppliers.filter(s =>
+      s.name.toLowerCase().includes(q) ||
+      (s.contact || "").toLowerCase().includes(q) ||
+      (s.email || "").toLowerCase().includes(q)
+    );
+  }, [data.suppliers, search]);
 
   return (
     <>
-      <div className="flex justify-end mb-3">
+      <div className="flex justify-between items-center gap-3 mb-3">
+        <div className="relative flex-1 max-w-xs">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Pesquisar fornecedores..."
+            className="w-full h-9 pl-9 pr-3 rounded-lg border border-input bg-background text-sm"
+          />
+        </div>
         <button onClick={() => setOpen(true)} className="h-10 px-4 rounded-lg bg-primary text-primary-foreground text-sm font-medium flex items-center gap-2 shadow-[var(--shadow-elegant)]">
           <Plus className="h-4 w-4" /> Novo fornecedor
         </button>
@@ -197,10 +247,12 @@ function FornecedoresTab() {
             </tr>
           </thead>
           <tbody>
-            {data.suppliers.length === 0 && (
-              <tr><td colSpan={5} className="p-10 text-center text-muted-foreground">Nenhum fornecedor cadastrado.</td></tr>
+            {filtered.length === 0 && (
+              <tr><td colSpan={5} className="p-10 text-center text-muted-foreground">
+                {search ? `Nenhum fornecedor encontrado para "${search}".` : "Nenhum fornecedor cadastrado."}
+              </td></tr>
             )}
-            {data.suppliers.map((s) => (
+            {filtered.map((s) => (
               <tr key={s.id} className="border-t border-border">
                 <td className="p-3 font-medium">{s.name}</td>
                 <td className="p-3 text-muted-foreground">{s.contact || "—"}</td>
@@ -227,7 +279,15 @@ function FornecedoresTab() {
             { key: "notes", label: "Observações", textarea: true },
           ]}
           onClose={() => setOpen(false)}
-          onSave={(v: any) => { addSupplier(v); toast.success("Fornecedor cadastrado"); setOpen(false); }}
+          onSave={async (v: any) => {
+            try {
+              await addSupplier(v);
+              toast.success("Fornecedor cadastrado");
+              setOpen(false);
+            } catch (err: any) {
+              toast.error("Erro: " + err.message);
+            }
+          }}
         />
       )}
     </>
@@ -323,10 +383,14 @@ function FilamentosTab() {
         <FilamentDialog
           initial={editing ? data.filaments.find((f) => f.id === editing) : undefined}
           onClose={() => { setOpen(false); setEditing(null); }}
-          onSave={(v: any) => {
-            if (editing) { updateFilament(editing, v); toast.success("Atualizado"); }
-            else { addFilament(v); toast.success("Filamento cadastrado"); }
-            setOpen(false); setEditing(null);
+          onSave={async (v: any) => {
+            try {
+              if (editing) { await updateFilament(editing, v); toast.success("Atualizado"); }
+              else { await addFilament(v); toast.success("Filamento cadastrado"); }
+              setOpen(false); setEditing(null);
+            } catch (err: any) {
+              toast.error("Erro: " + err.message);
+            }
           }}
         />
       )}

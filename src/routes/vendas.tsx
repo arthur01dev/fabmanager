@@ -90,7 +90,7 @@ function VendasPage() {
                   <td className="p-3 text-right">{formatBRL(s.unitPrice)}</td>
                   <td className="p-3 text-right font-semibold text-success">{formatBRL(s.total)}</td>
                   <td className="p-3">
-                    <span className="text-xs px-2 py-1 rounded-full bg-muted font-medium">{s.paymentMethod}</span>
+                    <span className="text-xs px-2 py-1 rounded-full bg-muted font-medium">{s.paymentMethod || "—"}</span>
                   </td>
                   <td className="p-3 text-right">
                     <button onClick={() => { removeSale(s.id); toast.success("Venda removida"); }} className="text-muted-foreground hover:text-destructive">
@@ -104,13 +104,13 @@ function VendasPage() {
         </div>
       </div>
 
-      {open && <NewSaleDialog onClose={() => setOpen(false)} onSave={async (s) => { 
-        const res = await addSale(s); 
-        if (res?.ok) {
-          toast.success("Venda registrada"); 
-          setOpen(false); 
-        } else {
-          toast.error("Erro ao registrar: " + res?.error);
+      {open && <NewSaleDialog onClose={() => setOpen(false)} onSave={async (s) => {
+        try {
+          await addSale(s);
+          toast.success("Venda registrada");
+          setOpen(false);
+        } catch (err: any) {
+          toast.error("Erro ao registrar: " + err.message);
         }
       }} />}
     </>

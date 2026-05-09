@@ -3,6 +3,7 @@ import { Protected } from "@/components/layout/Protected";
 import { PageHeader } from "@/components/layout/AppLayout";
 import { useStore, formatBRL } from "@/lib/store";
 import { Package, Trash2 } from "lucide-react";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/estoque")({
   component: () => (
@@ -16,6 +17,16 @@ function EstoquePage() {
   const { data, removeStockItem } = useStore();
   const items = data.stock.filter((i) => i.quantity > 0);
   const totalValue = items.reduce((s, i) => s + i.quantity * i.suggestedPrice, 0);
+
+  const handleDelete = async (id: string, name: string) => {
+    if (!confirm(`Excluir "${name}" do estoque?`)) return;
+    try {
+      await removeStockItem(id);
+      toast.success("Item removido do estoque");
+    } catch (err: any) {
+      toast.error("Erro ao remover: " + err.message);
+    }
+  };
 
   return (
     <>
@@ -53,7 +64,7 @@ function EstoquePage() {
             </thead>
             <tbody>
               {items.length === 0 && (
-                <tr><td colSpan={7} className="p-10 text-center text-muted-foreground">
+                <tr><td colSpan={8} className="p-10 text-center text-muted-foreground">
                   <Package className="h-8 w-8 mx-auto mb-2 opacity-40" />
                   Estoque vazio. Finalize peças na aba Produção.
                 </td></tr>
@@ -70,6 +81,15 @@ function EstoquePage() {
                     <td className="p-3 text-right">{formatBRL(i.productionCost)}</td>
                     <td className="p-3 text-right font-semibold">{formatBRL(i.suggestedPrice)}</td>
                     <td className="p-3 text-right text-success">{formatBRL(margin)} <span className="text-xs text-muted-foreground">({marginPct.toFixed(0)}%)</span></td>
+                    <td className="p-3 text-right">
+                      <button
+                        onClick={() => handleDelete(i.id, i.name)}
+                        className="text-muted-foreground hover:text-destructive transition-colors"
+                        title="Excluir item do estoque"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </td>
                   </tr>
                 );
               })}

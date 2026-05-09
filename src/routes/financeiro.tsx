@@ -126,13 +126,13 @@ function FinanceiroPage() {
         </div>
       </div>
 
-      {open && <NewTxDialog onClose={() => setOpen(false)} onSave={async (t) => { 
-        const res = await addTransaction(t); 
-        if (res?.ok) {
-          toast.success("Lançamento adicionado"); 
-          setOpen(false); 
-        } else {
-          toast.error("Erro ao salvar: " + res?.error);
+      {open && <NewTxDialog onClose={() => setOpen(false)} onSave={async (t) => {
+        try {
+          await addTransaction(t);
+          toast.success("Lançamento adicionado");
+          setOpen(false);
+        } catch (err: any) {
+          toast.error("Erro ao salvar: " + err.message);
         }
       }} />}
     </>
