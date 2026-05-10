@@ -3,8 +3,8 @@ import { Protected } from "@/components/layout/Protected";
 import { PageHeader } from "@/components/layout/AppLayout";
 import { useStore, formatBRL, formatHoursDecimal } from "@/lib/store";
 import type { FilamentUsage } from "@/lib/types";
-import { useEffect, useMemo, useState } from "react";
-import { Plus, Trash2, CheckCircle2, Clock, AlertTriangle, History } from "lucide-react";
+import { useEffect, useMemo, useState, useRef } from "react";
+import { Plus, Trash2, CheckCircle2, Clock, AlertTriangle, History, Search } from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/producao")({
@@ -291,6 +291,24 @@ function NewProductionDialog({ onClose, onSave }: { onClose: () => void; onSave:
   const [suggestedPrice, setSuggestedPrice] = useState("");
   const [autoCalc, setAutoCalc] = useState(true);
   const [nameError, setNameError] = useState(false);
+  const [showClientSuggestions, setShowClientSuggestions] = useState(false);
+  const clientRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (clientRef.current && !clientRef.current.contains(event.target as Node)) {
+        setShowClientSuggestions(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const filteredClients = useMemo(() => {
+    const q = client.toLowerCase().trim();
+    if (!q) return data.customers;
+    return data.customers.filter(c => c.name.toLowerCase().includes(q));
+  }, [client, data.customers]);
 
   const hours = parseFloat(estimatedHours.replace(",", ".")) || 0;
   const totalGrams = filaments.reduce((s, f) => s + (f.grams || 0), 0);
@@ -380,19 +398,57 @@ function NewProductionDialog({ onClose, onSave }: { onClose: () => void; onSave:
         </div>
 
         <div className="grid grid-cols-2 gap-3">
-          <div>
-            {/* Cliente — texto livre OU seleção do cadastro */}
+          <div ref={clientRef} className="relative">
             <label className="text-sm font-medium">Cliente <span className="text-xs text-muted-foreground">(opcional)</span></label>
-            <input
-              list="clientes-list"
-              value={client}
-              onChange={(e) => setClient(e.target.value)}
-              placeholder="Nome ou avulso"
-              className="mt-1 w-full h-10 px-3 rounded-lg border border-input bg-background"
-            />
-            <datalist id="clientes-list">
-              {data.customers.map((c) => <option key={c.id} value={c.name} />)}
-            </datalist>
+            <div className="relative mt-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <input
+                value={client}
+                onChange={(e) => {
+                  setClient(e.target.value);
+                  setShowClientSuggestions(true);
+                }}
+                onFocus={() => setShowClientSuggestions(true)}
+                placeholder="Pesquisar ou digitar avulso"
+                className="w-full h-10 pl-9 pr-3 rounded-lg border border-input bg-background"
+                autoComplete="off"
+              />
+            </div>
+            
+            {showClientSuggestions && (client.trim() || data.customers.length > 0) && (
+              <div className="absolute z-50 w-full mt-1 bg-card border border-border rounded-lg shadow-[var(--shadow-card)] max-h-48 overflow-y-auto">
+                {filteredClients.length === 0 ? (
+                  <div className="p-3 text-sm text-muted-foreground flex items-center justify-between">
+                    <span>Nenhum cadastro encontrado.</span>
+                    <span className="text-xs bg-muted px-2 py-1 rounded">Será salvo como avulso</span>
+                  </div>
+                ) : (
+                  <ul className="py-1 text-sm">
+                    {filteredClients.map((c) => (
+                      <li
+                        key={c.id}
+                        onClick={() => {
+                          setClient(c.name);
+                          setShowClientSuggestions(false);
+                        }}
+                        className="px-3 py-2 cursor-pointer hover:bg-muted transition-colors flex items-center gap-2"
+                      >
+                        <span className="font-medium text-foreground">{c.name}</span>
+                        {c.contact && <span className="text-xs text-muted-foreground ml-auto">{c.contact}</span>}
+                      </li>
+                    ))}
+                    {client.trim() && !data.customers.some(c => c.name.toLowerCase() === client.toLowerCase().trim()) && (
+                      <li 
+                        onClick={() => setShowClientSuggestions(false)}
+                        className="px-3 py-2 border-t border-border cursor-pointer hover:bg-muted transition-colors flex items-center"
+                      >
+                        <span className="text-muted-foreground">Usar avulso: <strong className="text-foreground">{client}</strong></span>
+                      </li>
+                    )}
+                  </ul>
+                )}
+              </div>
+            )}
           </div>
           <div>
             <label className="text-sm font-medium">Início</label>
