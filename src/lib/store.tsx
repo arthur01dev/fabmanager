@@ -95,7 +95,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       })) || [],
       production: resProd.data?.map((p: any) => ({
         id: p.id, name: p.name,
-        client: custName(p.customer_id),
+        // Prioriza client_name (texto livre) sobre lookup por FK
+        client: p.client_name || custName(p.customer_id),
         status: p.status,
         startDate: p.start_date, endDate: p.end_date || undefined,
         estimatedHours: Number(p.estimated_hours),
@@ -170,6 +171,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     const { error } = await supabase.from("production_items").insert({
       id: newId,
       customer_id: custId,
+      client_name: p.client || null, // Salva nome livre mesmo sem FK
       name: p.name,
       status: p.status,
       start_date: p.startDate,

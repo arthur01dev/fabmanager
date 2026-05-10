@@ -4,7 +4,7 @@ import { PageHeader } from "@/components/layout/AppLayout";
 import { useStore, formatBRL, formatHoursDecimal } from "@/lib/store";
 import type { FilamentUsage } from "@/lib/types";
 import { useEffect, useMemo, useState } from "react";
-import { Plus, Trash2, CheckCircle2, Clock, AlertTriangle } from "lucide-react";
+import { Plus, Trash2, CheckCircle2, Clock, AlertTriangle, History } from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/producao")({
@@ -18,113 +18,263 @@ export const Route = createFileRoute("/producao")({
 function ProducaoPage() {
   const { data, addProduction, updateProductionStatus, removeProduction } = useStore();
   const [open, setOpen] = useState(false);
+  const [tab, setTab] = useState<"ativa" | "historico">("ativa");
 
-  const activeProduction = useMemo(() => {
-    return data.production.filter(p => p.status === "em_producao"); // CORRIGIDO: era "in_progress"
-  }, [data.production]);
+  const activeProduction = useMemo(
+    () => data.production.filter((p) => p.status === "em_producao"),
+    [data.production]
+  );
+
+  const history = useMemo(
+    () => data.production.filter((p) => p.status === "finalizado"),
+    [data.production]
+  );
 
   return (
     <>
       <PageHeader
         title="Produção"
-        subtitle="Cadastre peças com múltiplos filamentos. O estoque de matéria-prima é descontado automaticamente."
+        subtitle="Cadastre peças com múltiplos filamentos. O estoque é atualizado automaticamente ao finalizar."
         action={
-          <button onClick={() => setOpen(true)} className="h-10 px-4 rounded-lg bg-primary text-primary-foreground text-sm font-medium flex items-center gap-2 shadow-[var(--shadow-elegant)]">
+          <button
+            onClick={() => setOpen(true)}
+            className="h-10 px-4 rounded-lg bg-primary text-primary-foreground text-sm font-medium flex items-center gap-2 shadow-[var(--shadow-elegant)]"
+          >
             <Plus className="h-4 w-4" /> Nova peça
           </button>
         }
       />
 
-      <div className="grid md:grid-cols-2 gap-4">
-        {activeProduction.length === 0 && (
-          <div className="md:col-span-2 bg-card border border-border rounded-2xl p-10 text-center text-muted-foreground">
-            Nenhuma peça em produção. Clique em "Nova peça" para começar.
-          </div>
-        )}
-        {activeProduction.map((p) => (
-          <div key={p.id} className="bg-card rounded-2xl p-5 border border-border shadow-[var(--shadow-soft)]">
-            <div className="flex items-start justify-between gap-2">
-              <div>
-                <h4 className="font-semibold">{p.name}</h4>
-                {p.client && <p className="text-sm text-muted-foreground">Cliente: {p.client}</p>}
-              </div>
-              <span className={`text-xs px-2 py-1 rounded-full font-medium ${p.status === "finalizado" ? "bg-success/15 text-success" : "bg-warning/20 text-warning-foreground"}`}>
-                {p.status === "finalizado" ? "Finalizado" : "Em produção"}
-              </span>
-            </div>
-            <div className="grid grid-cols-2 gap-3 text-sm mt-4">
-              <div>
-                <div className="text-muted-foreground text-xs">Início</div>
-                <div>{new Date(p.startDate).toLocaleDateString("pt-BR")}</div>
-              </div>
-              <div>
-                <div className="text-muted-foreground text-xs">Conclusão</div>
-                <div>{p.endDate ? new Date(p.endDate).toLocaleDateString("pt-BR") : "—"}</div>
-              </div>
-              <div>
-                <div className="text-muted-foreground text-xs">Tempo de impressão</div>
-                <div className="flex items-center gap-1"><Clock className="h-3 w-3" /> {p.estimatedHours}h <span className="text-xs text-muted-foreground">({formatHoursDecimal(p.estimatedHours)})</span></div>
-              </div>
-              <div>
-                <div className="text-muted-foreground text-xs">Filamento total</div>
-                <div>{p.filamentGrams || 0}g</div>
-              </div>
-              <div>
-                <div className="text-muted-foreground text-xs">Custo</div>
-                <div>{formatBRL(p.productionCost)}</div>
-              </div>
-              <div>
-                <div className="text-muted-foreground text-xs">Preço sugerido</div>
-                <div className="text-success font-medium">{formatBRL(p.suggestedPrice)}</div>
-              </div>
-            </div>
-            {p.filaments && p.filaments.length > 0 && (
-              <div className="mt-3 flex flex-wrap gap-1.5">
-                {p.filaments.map((f, i) => (
-                  <span key={i} className="text-xs bg-muted/60 rounded-full px-2 py-0.5 text-muted-foreground">
-                    {f.name} · {f.grams}g
-                  </span>
-                ))}
-              </div>
-            )}
-            <div className="flex gap-2 mt-4">
-              {p.status !== "finalizado" && ( // CORRIGIDO: era "completed"
-                <button onClick={async () => {
-                  try {
-                    await updateProductionStatus(p.id, "finalizado"); // CORRIGIDO: era "completed"
-                    toast.success("Peça finalizada e enviada ao estoque");
-                  } catch (err: any) {
-                    toast.error("Erro ao finalizar: " + err.message);
-                  }
-                }} className="flex-1 h-9 rounded-lg bg-success text-success-foreground text-sm font-medium flex items-center justify-center gap-1">
-                  <CheckCircle2 className="h-4 w-4" /> Finalizar
-                </button>
-              )}
-              <button 
-                onClick={async () => { 
-                  if (confirm("Excluir esta peça em produção?")) {
-                    await removeProduction(p.id); 
-                    toast.success("Peça removida"); 
-                  }
-                }} 
-                className="h-9 px-3 rounded-lg border border-input text-muted-foreground hover:text-destructive"
-              >
-                <Trash2 className="h-4 w-4" />
-              </button>
-            </div>
-          </div>
-        ))}
+      {/* Tabs */}
+      <div className="flex gap-2 mb-6 bg-card border border-border rounded-xl p-1 w-fit">
+        <button
+          onClick={() => setTab("ativa")}
+          className={`px-4 h-9 rounded-lg text-sm font-medium flex items-center gap-2 transition-all ${
+            tab === "ativa"
+              ? "bg-primary text-primary-foreground shadow-[var(--shadow-elegant)]"
+              : "text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          <Clock className="h-4 w-4" />
+          Em produção
+          {activeProduction.length > 0 && (
+            <span className="ml-1 h-5 min-w-5 px-1 rounded-full bg-warning/30 text-warning-foreground text-xs font-bold flex items-center justify-center">
+              {activeProduction.length}
+            </span>
+          )}
+        </button>
+        <button
+          onClick={() => setTab("historico")}
+          className={`px-4 h-9 rounded-lg text-sm font-medium flex items-center gap-2 transition-all ${
+            tab === "historico"
+              ? "bg-primary text-primary-foreground shadow-[var(--shadow-elegant)]"
+              : "text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          <History className="h-4 w-4" />
+          Histórico
+          {history.length > 0 && (
+            <span className="ml-1 h-5 min-w-5 px-1 rounded-full bg-success/20 text-success text-xs font-bold flex items-center justify-center">
+              {history.length}
+            </span>
+          )}
+        </button>
       </div>
 
-      {open && <NewProductionDialog onClose={() => setOpen(false)} onSave={async (p) => {
-        try {
-          await addProduction(p); // CORRIGIDO: addProduction agora está no escopo
-          toast.success("Peça adicionada · estoque de filamento atualizado");
-          setOpen(false);
-        } catch (err: any) {
-          toast.error("Erro ao salvar: " + err.message);
-        }
-      }} />}
+      {/* ABA: EM PRODUÇÃO */}
+      {tab === "ativa" && (
+        <div className="grid md:grid-cols-2 gap-4">
+          {activeProduction.length === 0 && (
+            <div className="md:col-span-2 bg-card border border-border rounded-2xl p-10 text-center text-muted-foreground">
+              Nenhuma peça em produção. Clique em "Nova peça" para começar.
+            </div>
+          )}
+          {activeProduction.map((p) => (
+            <div key={p.id} className="bg-card rounded-2xl p-5 border border-border shadow-[var(--shadow-soft)]">
+              <div className="flex items-start justify-between gap-2">
+                <div>
+                  <h4 className="font-semibold">{p.name}</h4>
+                  {p.client && <p className="text-sm text-muted-foreground">Cliente: {p.client}</p>}
+                </div>
+                <span className="text-xs px-2 py-1 rounded-full font-medium bg-warning/20 text-warning-foreground">
+                  Em produção
+                </span>
+              </div>
+              <div className="grid grid-cols-2 gap-3 text-sm mt-4">
+                <div>
+                  <div className="text-muted-foreground text-xs">Início</div>
+                  <div>{new Date(p.startDate + "T12:00:00").toLocaleDateString("pt-BR")}</div>
+                </div>
+                <div>
+                  <div className="text-muted-foreground text-xs">Tempo de impressão</div>
+                  <div className="flex items-center gap-1">
+                    <Clock className="h-3 w-3" /> {formatHoursDecimal(p.estimatedHours)}
+                  </div>
+                </div>
+                <div>
+                  <div className="text-muted-foreground text-xs">Filamento total</div>
+                  <div>{p.filamentGrams || 0}g</div>
+                </div>
+                <div>
+                  <div className="text-muted-foreground text-xs">Custo</div>
+                  <div>{formatBRL(p.productionCost)}</div>
+                </div>
+                <div className="col-span-2">
+                  <div className="text-muted-foreground text-xs">Preço sugerido</div>
+                  <div className="text-success font-semibold">{formatBRL(p.suggestedPrice)}</div>
+                </div>
+              </div>
+              {p.filaments && p.filaments.length > 0 && (
+                <div className="mt-3 flex flex-wrap gap-1.5">
+                  {p.filaments.map((f, i) => (
+                    <span key={i} className="text-xs bg-muted/60 rounded-full px-2 py-0.5 text-muted-foreground">
+                      {f.name} · {f.grams}g
+                    </span>
+                  ))}
+                </div>
+              )}
+              <div className="flex gap-2 mt-4">
+                <button
+                  onClick={async () => {
+                    try {
+                      await updateProductionStatus(p.id, "finalizado");
+                      toast.success("Peça finalizada e enviada ao estoque");
+                    } catch (err: any) {
+                      toast.error("Erro ao finalizar: " + err.message);
+                    }
+                  }}
+                  className="flex-1 h-9 rounded-lg bg-success text-success-foreground text-sm font-medium flex items-center justify-center gap-1"
+                >
+                  <CheckCircle2 className="h-4 w-4" /> Finalizar
+                </button>
+                <button
+                  onClick={async () => {
+                    if (confirm("Excluir esta peça em produção?")) {
+                      try {
+                        await removeProduction(p.id);
+                        toast.success("Peça removida");
+                      } catch (err: any) {
+                        toast.error("Erro: " + err.message);
+                      }
+                    }
+                  }}
+                  className="h-9 px-3 rounded-lg border border-input text-muted-foreground hover:text-destructive"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* ABA: HISTÓRICO */}
+      {tab === "historico" && (
+        <div className="bg-card rounded-2xl border border-border overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-muted/50 text-muted-foreground text-left">
+                <tr>
+                  <th className="p-3 font-medium">Peça</th>
+                  <th className="p-3 font-medium">Cliente</th>
+                  <th className="p-3 font-medium">Filamentos</th>
+                  <th className="p-3 font-medium text-right">Tempo</th>
+                  <th className="p-3 font-medium text-right">Custo</th>
+                  <th className="p-3 font-medium text-right">Preço</th>
+                  <th className="p-3 font-medium text-right">Data</th>
+                  <th className="p-3"></th>
+                </tr>
+              </thead>
+              <tbody>
+                {history.length === 0 && (
+                  <tr>
+                    <td colSpan={8} className="p-10 text-center text-muted-foreground">
+                      Nenhuma peça finalizada ainda. Finalize peças na aba "Em produção".
+                    </td>
+                  </tr>
+                )}
+                {history.map((p) => (
+                  <tr key={p.id} className="border-t border-border hover:bg-muted/20">
+                    <td className="p-3 font-medium">{p.name}</td>
+                    <td className="p-3 text-muted-foreground">{p.client || "—"}</td>
+                    <td className="p-3">
+                      <div className="flex flex-wrap gap-1">
+                        {p.filaments && p.filaments.length > 0 ? (
+                          p.filaments.map((f, i) => (
+                            <span key={i} className="text-xs bg-muted/60 rounded-full px-2 py-0.5 text-muted-foreground">
+                              {f.name} · {f.grams}g
+                            </span>
+                          ))
+                        ) : (
+                          <span className="text-muted-foreground">{p.filamentGrams || 0}g</span>
+                        )}
+                      </div>
+                    </td>
+                    <td className="p-3 text-right text-muted-foreground">{formatHoursDecimal(p.estimatedHours)}</td>
+                    <td className="p-3 text-right">{formatBRL(p.productionCost)}</td>
+                    <td className="p-3 text-right font-semibold text-success">{formatBRL(p.suggestedPrice)}</td>
+                    <td className="p-3 text-right text-muted-foreground">
+                      {p.startDate
+                        ? new Date(p.startDate + "T12:00:00").toLocaleDateString("pt-BR")
+                        : "—"}
+                    </td>
+                    <td className="p-3 text-right">
+                      <button
+                        onClick={async () => {
+                          if (confirm(`Excluir "${p.name}" do histórico permanentemente?`)) {
+                            try {
+                              await removeProduction(p.id);
+                              toast.success("Registro removido do histórico");
+                            } catch (err: any) {
+                              toast.error("Erro: " + err.message);
+                            }
+                          }
+                        }}
+                        className="text-muted-foreground hover:text-destructive transition-colors"
+                        title="Remover do histórico"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          {history.length > 0 && (
+            <div className="p-3 border-t border-border bg-muted/20 flex items-center justify-between text-sm">
+              <span className="text-muted-foreground">{history.length} peça(s) no histórico</span>
+              <div className="flex gap-4">
+                <span>
+                  Total filamento:{" "}
+                  <strong>{history.reduce((s, p) => s + (p.filamentGrams || 0), 0).toFixed(0)}g</strong>
+                </span>
+                <span>
+                  Custo total:{" "}
+                  <strong className="text-foreground">
+                    {formatBRL(history.reduce((s, p) => s + p.productionCost, 0))}
+                  </strong>
+                </span>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {open && (
+        <NewProductionDialog
+          onClose={() => setOpen(false)}
+          onSave={async (p) => {
+            try {
+              await addProduction(p);
+              toast.success("Peça adicionada à produção");
+              setOpen(false);
+            } catch (err: any) {
+              toast.error("Erro ao salvar: " + err.message);
+            }
+          }}
+        />
+      )}
     </>
   );
 }
@@ -140,10 +290,9 @@ function NewProductionDialog({ onClose, onSave }: { onClose: () => void; onSave:
   const [productionCost, setProductionCost] = useState("");
   const [suggestedPrice, setSuggestedPrice] = useState("");
   const [autoCalc, setAutoCalc] = useState(true);
+  const [nameError, setNameError] = useState(false);
 
-  // hours como decimal puro (ex: 2.4 = 2h24min)
   const hours = parseFloat(estimatedHours.replace(",", ".")) || 0;
-
   const totalGrams = filaments.reduce((s, f) => s + (f.grams || 0), 0);
 
   const filamentCost = useMemo(() => {
@@ -171,7 +320,6 @@ function NewProductionDialog({ onClose, onSave }: { onClose: () => void; onSave:
   const updateRow = (i: number, patch: Partial<FilamentUsage>) =>
     setFilaments(filaments.map((f, idx) => (idx === i ? { ...f, ...patch } : f)));
 
-  // valida estoque
   const stockWarnings = filaments
     .map((f, i) => {
       if (!f.filamentId) return null;
@@ -184,15 +332,20 @@ function NewProductionDialog({ onClose, onSave }: { onClose: () => void; onSave:
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name) return;
+    if (!name.trim()) {
+      setNameError(true);
+      toast.error("Nome da peça é obrigatório");
+      return;
+    }
+    setNameError(false);
     const validFils = filaments.filter((f) => f.name && f.grams > 0);
     if (stockWarnings.length > 0) {
       if (!confirm("Há filamentos com estoque insuficiente. Continuar mesmo assim?")) return;
     }
     onSave({
-      name,
-      client: client || undefined,
-      status: "em_producao", // CORRIGIDO: era "in_progress"
+      name: name.trim(),
+      client: client.trim() || undefined, // Aceita texto livre, não precisa estar no cadastro
+      status: "em_producao",
       startDate,
       estimatedHours: hours,
       filaments: validFils,
@@ -204,28 +357,54 @@ function NewProductionDialog({ onClose, onSave }: { onClose: () => void; onSave:
 
   return (
     <div className="fixed inset-0 z-50 bg-foreground/30 flex items-center justify-center p-4" onClick={onClose}>
-      <form onSubmit={submit} onClick={(e) => e.stopPropagation()} className="w-full max-w-lg bg-card rounded-2xl p-6 space-y-4 border border-border max-h-[92vh] overflow-y-auto">
+      <form
+        onSubmit={submit}
+        onClick={(e) => e.stopPropagation()}
+        className="w-full max-w-lg bg-card rounded-2xl p-6 space-y-4 border border-border max-h-[92vh] overflow-y-auto"
+      >
         <div className="flex justify-between items-center mb-2">
           <h3 className="text-lg font-semibold">Nova peça em produção</h3>
           <button type="button" onClick={onClose} className="text-2xl leading-none text-muted-foreground hover:text-foreground">×</button>
         </div>
+
         <div>
-          <label className="text-sm font-medium">Nome da peça</label>
-          <input required value={name} onChange={(e) => setName(e.target.value)} className="mt-1 w-full h-10 px-3 rounded-lg border border-input bg-background" />
+          <label className="text-sm font-medium">Nome da peça *</label>
+          <input
+            required
+            value={name}
+            onChange={(e) => { setName(e.target.value); setNameError(false); }}
+            className={`mt-1 w-full h-10 px-3 rounded-lg border bg-background ${nameError ? "border-destructive ring-1 ring-destructive" : "border-input"}`}
+            placeholder="Ex: Suporte de parede"
+          />
+          {nameError && <p className="text-xs text-destructive mt-1">Campo obrigatório</p>}
         </div>
+
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <label className="text-sm font-medium">Cliente</label>
-            <input list="clientes" value={client} onChange={(e) => setClient(e.target.value)} className="mt-1 w-full h-10 px-3 rounded-lg border border-input bg-background" />
-            <datalist id="clientes">
+            {/* Cliente — texto livre OU seleção do cadastro */}
+            <label className="text-sm font-medium">Cliente <span className="text-xs text-muted-foreground">(opcional)</span></label>
+            <input
+              list="clientes-list"
+              value={client}
+              onChange={(e) => setClient(e.target.value)}
+              placeholder="Nome ou avulso"
+              className="mt-1 w-full h-10 px-3 rounded-lg border border-input bg-background"
+            />
+            <datalist id="clientes-list">
               {data.customers.map((c) => <option key={c.id} value={c.name} />)}
             </datalist>
           </div>
           <div>
             <label className="text-sm font-medium">Início</label>
-            <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="mt-1 w-full h-10 px-3 rounded-lg border border-input bg-background" />
+            <input
+              type="date"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              className="mt-1 w-full h-10 px-3 rounded-lg border border-input bg-background"
+            />
           </div>
         </div>
+
         <div>
           <label className="text-sm font-medium">Tempo de impressão (horas decimais)</label>
           <input
@@ -237,7 +416,7 @@ function NewProductionDialog({ onClose, onSave }: { onClose: () => void; onSave:
             className="mt-1 w-full h-10 px-3 rounded-lg border border-input bg-background"
           />
           <p className="text-xs text-muted-foreground mt-1">
-            Use o valor exato do Bambu Studio (ex: <strong>2.4</strong> = {formatHoursDecimal(2.4)}). Atual: <strong>{formatHoursDecimal(hours)}</strong>
+            Valor do slicer (ex: <strong>2.4</strong> = {formatHoursDecimal(2.4)}). Atual: <strong>{formatHoursDecimal(hours)}</strong>
           </p>
         </div>
 
@@ -271,7 +450,7 @@ function NewProductionDialog({ onClose, onSave }: { onClose: () => void; onSave:
                     >
                       <option value="">— Selecione do estoque —</option>
                       {data.filaments.map((fs) => (
-                        <option key={fs.id} value={fs.id}>{fs.name} ({fs.grams}g)</option>
+                        <option key={fs.id} value={fs.id}>{fs.name} ({fs.grams}g disponíveis)</option>
                       ))}
                       <option value="__custom__">+ Avulso (sem estoque)</option>
                     </select>
@@ -304,7 +483,9 @@ function NewProductionDialog({ onClose, onSave }: { onClose: () => void; onSave:
               );
             })}
           </div>
-          <div className="text-xs text-muted-foreground mt-2 text-right">Total: <strong className="text-foreground">{totalGrams.toFixed(1)}g</strong></div>
+          <div className="text-xs text-muted-foreground mt-2 text-right">
+            Total: <strong className="text-foreground">{totalGrams.toFixed(1)}g</strong>
+          </div>
         </div>
 
         <label className="flex items-center gap-2 text-sm">
