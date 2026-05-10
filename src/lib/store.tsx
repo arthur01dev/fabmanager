@@ -122,7 +122,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         stockItemId: s.stock_item_id || undefined,
         customerId: s.customer_id || undefined,
         productName: s.product_name,
-        client: custName(s.customer_id),
+        // Prioriza nome livre (avulso) sobre lookup por FK
+        client: s.client_name || custName(s.customer_id),
         quantity: Number(s.quantity),
         unitPrice: Number(s.unit_price),
         total: Number(s.total),
@@ -220,6 +221,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     const { error } = await supabase.rpc("register_sale", {
       p_stock_item_id: s.stockItemId || null,
       p_customer_id: custId,
+      p_client_name: custId ? null : (s.client || null), // Nome livre só quando não há FK
       p_product_name: s.productName,
       p_quantity: s.quantity,
       p_unit_price: s.unitPrice,
