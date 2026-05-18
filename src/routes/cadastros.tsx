@@ -54,8 +54,9 @@ function TabBtn({ active, onClick, icon, label }: any) {
 
 /* ---------- CLIENTES ---------- */
 function ClientesTab() {
-  const { data, addCustomer, removeCustomer } = useStore();
+  const { data, addCustomer, updateCustomer, removeCustomer } = useStore();
   const [open, setOpen] = useState(false);
+  const [editCustomer, setEditCustomer] = useState<typeof data.customers[0] | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
   const [search, setSearch] = useState("");
 
@@ -130,9 +131,22 @@ function ClientesTab() {
                     <td className="p-3 text-center">{st?.count || 0}</td>
                     <td className="p-3 text-right font-semibold text-success">{formatBRL(st?.total || 0)}</td>
                     <td className="p-3 text-right">
-                      <button onClick={(e) => { e.stopPropagation(); if (confirm("Excluir cliente?")) { removeCustomer(c.id); toast.success("Cliente removido"); } }} className="text-muted-foreground hover:text-destructive">
-                        <Trash2 className="h-4 w-4" />
-                      </button>
+                      <div className="flex items-center justify-end gap-2">
+                        <button
+                          onClick={(e) => { e.stopPropagation(); setEditCustomer(c); }}
+                          className="text-muted-foreground hover:text-primary"
+                          title="Editar cliente"
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </button>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); if (confirm(`Excluir cliente "${c.name}"?`)) { removeCustomer(c.id); toast.success("Cliente removido"); } }}
+                          className="text-muted-foreground hover:text-destructive"
+                          title="Excluir cliente"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 );
@@ -142,25 +156,58 @@ function ClientesTab() {
         </div>
 
         <div className="bg-card rounded-2xl border border-border p-5">
-          <h4 className="font-semibold mb-3">Histórico</h4>
-          {!sel && <p className="text-sm text-muted-foreground">Selecione um cliente para ver o histórico.</p>}
+          <h4 className="font-semibold mb-3">Dados do cliente</h4>
+          {!sel && <p className="text-sm text-muted-foreground">Selecione um cliente para ver os detalhes.</p>}
           {sel && (
             <div className="space-y-3">
-              <div>
-                <div className="font-semibold">{sel.name}</div>
-                <div className="text-xs text-muted-foreground">{sel.contact || sel.email}</div>
+              <div className="flex items-start justify-between gap-2">
+                <div>
+                  <div className="font-semibold text-base">{sel.name}</div>
+                  <div className="text-xs text-muted-foreground mt-0.5">
+                    Cadastrado em {new Date(sel.createdAt).toLocaleDateString("pt-BR")}
+                  </div>
+                </div>
+                <button
+                  onClick={() => setEditCustomer(sel)}
+                  className="text-xs px-2 py-1 rounded border border-input text-muted-foreground hover:text-primary flex items-center gap-1"
+                >
+                  <Pencil className="h-3 w-3" /> Editar
+                </button>
               </div>
-              <div className="grid grid-cols-2 gap-2 text-sm">
+              <div className="space-y-2 text-sm">
+                {sel.contact && (
+                  <div className="flex items-center gap-2">
+                    <span className="text-muted-foreground w-20 shrink-0">Telefone</span>
+                    <span className="font-medium">{sel.contact}</span>
+                  </div>
+                )}
+                {sel.email && (
+                  <div className="flex items-center gap-2">
+                    <span className="text-muted-foreground w-20 shrink-0">Email</span>
+                    <span className="font-medium">{sel.email}</span>
+                  </div>
+                )}
+                {sel.notes && (
+                  <div className="flex items-start gap-2">
+                    <span className="text-muted-foreground w-20 shrink-0">Obs.</span>
+                    <span className="text-muted-foreground text-xs">{sel.notes}</span>
+                  </div>
+                )}
+                {!sel.contact && !sel.email && !sel.notes && (
+                  <p className="text-xs text-muted-foreground italic">Nenhuma informação adicional cadastrada.</p>
+                )}
+              </div>
+              <div className="grid grid-cols-2 gap-2 text-sm pt-1">
                 <div className="bg-muted/40 rounded-lg p-3">
                   <div className="text-xs text-muted-foreground">Compras</div>
                   <div className="font-bold text-lg">{selStats?.count || 0}</div>
                 </div>
                 <div className="bg-muted/40 rounded-lg p-3">
-                  <div className="text-xs text-muted-foreground">Total</div>
+                  <div className="text-xs text-muted-foreground">Total gasto</div>
                   <div className="font-bold text-lg text-success">{formatBRL(selStats?.total || 0)}</div>
                 </div>
               </div>
-              <div className="space-y-2 max-h-72 overflow-y-auto">
+              <div className="space-y-2 max-h-64 overflow-y-auto">
                 {selSales.length === 0 && <p className="text-xs text-muted-foreground">Sem compras registradas.</p>}
                 {selSales.map((s) => (
                   <div key={s.id} className="text-sm border border-border rounded-lg p-2">
@@ -168,7 +215,7 @@ function ClientesTab() {
                       <span className="font-medium">{s.productName}</span>
                       <span className="text-success font-semibold">{formatBRL(s.total)}</span>
                     </div>
-                    <div className="text-xs text-muted-foreground">{new Date(s.date).toLocaleDateString("pt-BR")} · {s.quantity}x</div>
+                    <div className="text-xs text-muted-foreground">{new Date(s.date + 'T12:00:00').toLocaleDateString("pt-BR")} · {s.quantity}x · {s.paymentMethod || "—"}</div>
                   </div>
                 ))}
               </div>
@@ -198,14 +245,38 @@ function ClientesTab() {
           }}
         />
       )}
+
+      {editCustomer && (
+        <SimpleDialog
+          title={`Editar: ${editCustomer.name}`}
+          initial={editCustomer}
+          fields={[
+            { key: "name", label: "Nome", required: true },
+            { key: "contact", label: "Telefone / WhatsApp" },
+            { key: "email", label: "Email" },
+            { key: "notes", label: "Observações", textarea: true },
+          ]}
+          onClose={() => setEditCustomer(null)}
+          onSave={async (v: any) => {
+            try {
+              await updateCustomer(editCustomer.id, v);
+              toast.success("Cliente atualizado");
+              setEditCustomer(null);
+            } catch (err: any) {
+              toast.error("Erro: " + err.message);
+            }
+          }}
+        />
+      )}
     </>
   );
 }
 
 /* ---------- FORNECEDORES ---------- */
 function FornecedoresTab() {
-  const { data, addSupplier, removeSupplier } = useStore();
+  const { data, addSupplier, updateSupplier, removeSupplier } = useStore();
   const [open, setOpen] = useState(false);
+  const [editSupplier, setEditSupplier] = useState<typeof data.suppliers[0] | null>(null);
   const [search, setSearch] = useState("");
 
   const filtered = useMemo(() => {
@@ -259,9 +330,22 @@ function FornecedoresTab() {
                 <td className="p-3 text-muted-foreground">{s.email || "—"}</td>
                 <td className="p-3 text-muted-foreground text-xs">{s.notes || "—"}</td>
                 <td className="p-3 text-right">
-                  <button onClick={() => { if (confirm("Excluir?")) { removeSupplier(s.id); toast.success("Removido"); } }} className="text-muted-foreground hover:text-destructive">
-                    <Trash2 className="h-4 w-4" />
-                  </button>
+                  <div className="flex items-center justify-end gap-2">
+                    <button
+                      onClick={() => setEditSupplier(s)}
+                      className="text-muted-foreground hover:text-primary"
+                      title="Editar fornecedor"
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </button>
+                    <button
+                      onClick={() => { if (confirm(`Excluir fornecedor "${s.name}"?`)) { removeSupplier(s.id); toast.success("Removido"); } }}
+                      className="text-muted-foreground hover:text-destructive"
+                      title="Excluir fornecedor"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))}
@@ -284,6 +368,29 @@ function FornecedoresTab() {
               await addSupplier(v);
               toast.success("Fornecedor cadastrado");
               setOpen(false);
+            } catch (err: any) {
+              toast.error("Erro: " + err.message);
+            }
+          }}
+        />
+      )}
+
+      {editSupplier && (
+        <SimpleDialog
+          title={`Editar: ${editSupplier.name}`}
+          initial={editSupplier}
+          fields={[
+            { key: "name", label: "Nome", required: true },
+            { key: "contact", label: "Telefone" },
+            { key: "email", label: "Email" },
+            { key: "notes", label: "Observações", textarea: true },
+          ]}
+          onClose={() => setEditSupplier(null)}
+          onSave={async (v: any) => {
+            try {
+              await updateSupplier(editSupplier.id, v);
+              toast.success("Fornecedor atualizado");
+              setEditSupplier(null);
             } catch (err: any) {
               toast.error("Erro: " + err.message);
             }
@@ -473,8 +580,10 @@ function FilamentDialog({ initial, onClose, onSave }: any) {
 }
 
 /* ---------- DIALOG GENÉRICO ---------- */
-function SimpleDialog({ title, fields, onClose, onSave }: any) {
-  const [values, setValues] = useState<Record<string, string>>({});
+function SimpleDialog({ title, fields, initial, onClose, onSave }: any) {
+  const [values, setValues] = useState<Record<string, string>>(initial
+    ? Object.fromEntries(fields.map((f: any) => [f.key, initial[f.key] || ""]))
+    : {});
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
     for (const f of fields) {

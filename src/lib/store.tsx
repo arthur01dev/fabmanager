@@ -13,10 +13,12 @@ interface StoreCtx {
   updateProductionStatus: (id: string, status: ProductionItem["status"]) => Promise<void>;
   updateProduction: (id: string, patch: any) => Promise<void>;
   removeProduction: (id: string) => Promise<void>;
+  removeProductionFull: (id: string) => Promise<void>;
   addSale: (s: Omit<Sale, "id" | "total">) => Promise<void>;
   updateSale: (id: string, patch: any) => Promise<void>;
   removeSale: (id: string) => Promise<void>;
   removeStockItem: (id: string) => Promise<void>;
+  removeStockItemFull: (id: string) => Promise<void>;
   updateStockItem: (id: string, patch: any) => Promise<void>;
   updateSettings: (s: Partial<Settings>) => Promise<void>;
   addFilament: (f: Omit<FilamentStock, "id">) => Promise<void>;
@@ -228,8 +230,14 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   }, [data.customers, syncData]);
 
   const removeProduction = useCallback(async (pid: string) => {
-    // Usa RPC segura que faz rollback dos filamentos antes de deletar
     const { error } = await supabase.rpc("delete_production", { p_production_id: pid });
+    if (error) throw error;
+    await syncData();
+  }, [syncData]);
+
+  const removeProductionFull = useCallback(async (pid: string) => {
+    // Cadeia completa: remove produção + estoque + vendas + transações + restaura filamentos
+    const { error } = await supabase.rpc("delete_full_chain", { p_production_id: pid });
     if (error) throw error;
     await syncData();
   }, [syncData]);
@@ -285,8 +293,14 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   }, [data.sales, data.customers, syncData]);
 
   const removeStockItem = useCallback(async (itemId: string) => {
-    // Usa RPC segura que faz rollback dos filamentos antes de deletar
     const { error } = await supabase.rpc("delete_stock_item", { p_stock_item_id: itemId });
+    if (error) throw error;
+    await syncData();
+  }, [syncData]);
+
+  const removeStockItemFull = useCallback(async (itemId: string) => {
+    // Cadeia completa: remove estoque + produção (histórico) + vendas + restaura filamentos
+    const { error } = await supabase.rpc("delete_stock_full", { p_stock_item_id: itemId });
     if (error) throw error;
     await syncData();
   }, [syncData]);
@@ -408,9 +422,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       value={{
         data,
         addTransaction, removeTransaction,
-        addProduction, updateProductionStatus, updateProduction, removeProduction,
+        addProduction, updateProductionStatus, updateProduction, removeProduction, removeProductionFull,
         addSale, updateSale, removeSale,
-        removeStockItem, updateStockItem,
+        removeStockItem, removeStockItemFull, updateStockItem,
         updateSettings,
         addFilament, updateFilament, removeFilament,
         addCustomer, updateCustomer, removeCustomer,

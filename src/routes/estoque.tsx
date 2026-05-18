@@ -16,16 +16,16 @@ export const Route = createFileRoute("/estoque")({
 });
 
 function EstoquePage() {
-  const { data, removeStockItem } = useStore();
+  const { data, removeStockItem, removeStockItemFull } = useStore();
   const [editItem, setEditItem] = useState<StockItem | null>(null);
   const items = data.stock.filter((i) => i.quantity > 0);
   const totalValue = items.reduce((s, i) => s + i.quantity * i.suggestedPrice, 0);
 
   const handleDelete = async (id: string, name: string) => {
-    if (!confirm(`Excluir "${name}" do estoque?\n\nOs filamentos utilizados serão devolvidos ao estoque de matéria-prima.`)) return;
+    if (!confirm(`Excluir "${name}" do estoque?\n\nIsso também removerá:\n• O registro do histórico de produção\n• As vendas desse item\n• Restaura os filamentos ao estoque\n\nEssa ação não pode ser desfeita.`)) return;
     try {
-      await removeStockItem(id);
-      toast.success("Item removido e filamentos devolvidos ao estoque");
+      await removeStockItemFull(id);
+      toast.success("Item e dados vinculados removidos com sucesso");
     } catch (err: any) {
       toast.error("Erro ao remover: " + err.message);
     }

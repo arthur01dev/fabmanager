@@ -16,7 +16,7 @@ export const Route = createFileRoute("/producao")({
 });
 
 function ProducaoPage() {
-  const { data, addProduction, updateProductionStatus, removeProduction } = useStore();
+  const { data, addProduction, updateProductionStatus, removeProduction, removeProductionFull } = useStore();
   const [open, setOpen] = useState(false);
   const [tab, setTab] = useState<"ativa" | "historico">("ativa");
   const [editProd, setEditProd] = useState<typeof data.production[0] | null>(null);
@@ -229,10 +229,10 @@ function ProducaoPage() {
                     <td className="p-3 text-right">
                       <button
                         onClick={async () => {
-                          if (confirm(`Excluir "${p.name}" do histórico permanentemente?`)) {
+                          if (confirm(`Excluir "${p.name}" do histórico permanentemente?\n\nIsso também removerá:\n• O item do estoque (se ainda existir)\n• As vendas desse item\n• Restaura os filamentos ao estoque\n\nEssa ação não pode ser desfeita.`)) {
                             try {
-                              await removeProduction(p.id);
-                              toast.success("Registro removido do histórico");
+                              await removeProductionFull(p.id);
+                              toast.success("Registro e dados vinculados removidos");
                             } catch (err: any) {
                               toast.error("Erro: " + err.message);
                             }
