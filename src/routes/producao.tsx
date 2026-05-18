@@ -4,7 +4,7 @@ import { PageHeader } from "@/components/layout/AppLayout";
 import { useStore, formatBRL, formatHoursDecimal } from "@/lib/store";
 import type { FilamentUsage } from "@/lib/types";
 import { useEffect, useMemo, useState, useRef } from "react";
-import { Plus, Trash2, CheckCircle2, Clock, AlertTriangle, History, Search } from "lucide-react";
+import { Plus, Trash2, CheckCircle2, Clock, AlertTriangle, History, Search, Pencil } from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/producao")({
@@ -19,6 +19,7 @@ function ProducaoPage() {
   const { data, addProduction, updateProductionStatus, removeProduction } = useStore();
   const [open, setOpen] = useState(false);
   const [tab, setTab] = useState<"ativa" | "historico">("ativa");
+  const [editProd, setEditProd] = useState<typeof data.production[0] | null>(null);
 
   const activeProduction = useMemo(
     () => data.production.filter((p) => p.status === "em_producao"),
@@ -148,8 +149,15 @@ function ProducaoPage() {
                   <CheckCircle2 className="h-4 w-4" /> Finalizar
                 </button>
                 <button
+                  onClick={() => setEditProd(p)}
+                  className="h-9 px-3 rounded-lg border border-input text-muted-foreground hover:text-primary"
+                  title="Editar peça"
+                >
+                  <Pencil className="h-4 w-4" />
+                </button>
+                <button
                   onClick={async () => {
-                    if (confirm("Excluir esta peça em produção?")) {
+                    if (confirm("Excluir esta peça em produção? Filamentos utilizados serão devolvidos ao estoque.")) {
                       try {
                         await removeProduction(p.id);
                         toast.success("Peça removida");
@@ -274,6 +282,10 @@ function ProducaoPage() {
             }
           }}
         />
+      )}
+
+      {editProd && (
+        <EditProductionDialog prod={editProd} onClose={() => setEditProd(null)} />
       )}
     </>
   );
@@ -570,6 +582,126 @@ function NewProductionDialog({ onClose, onSave }: { onClose: () => void; onSave:
         <div className="flex gap-2 justify-end pt-2">
           <button type="button" onClick={onClose} className="h-10 px-4 rounded-lg border border-input text-sm">Cancelar</button>
           <button type="submit" className="h-10 px-4 rounded-lg bg-primary text-primary-foreground text-sm font-medium">Salvar</button>
+        </div>
+      </form>
+    </div>
+  );
+}
+
+// ── EDITAR PRODUÇÃO ──────────────────────────────────────────────────────────
+function EditProductionDialog({ prod, onClose }: { prod: any; onClose: () => void }) {
+  const { data, updateProduction } = useStore();
+  const [name, setName] = useState(prod.name);
+  const [client, setClient] = useState(prod.client || "");
+  const [startDate, setStartDate] = useState(prod.startDate);
+  const [estimatedHours, setEstimatedHours] = useState(String(prod.estimatedHours));
+  const [filamentGrams, setFilamentGrams] = useState(String(prod.filamentGrams));
+  const [productionCost, setProductionCost] = useState(String(prod.productionCost));
+  const [suggestedPrice, setSuggestedPrice] = useState(String(prod.suggestedPrice));
+  const [saving, setSaving] = useState(false);
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSaving(true);
+    try {
+      await updateProduction(prod.id, {
+        name: name.trim(),
+        client: client.trim() || undefined,
+        startDate,
+        estimatedHours: parseFloat(estimatedHours.replace(",", ".")) || prod.estimatedHours,
+        filamentGrams: parseFloat(filamentGrams) || prod.filamentGrams,
+        productionCost: parseFloat(productionCost) || prod.productionCost,
+        suggestedPrice: parseFloat(suggestedPrice) || prod.suggestedPrice,
+      });
+      toast.success("Produção atualizada com sucesso");
+      onClose();
+    } catch (err: any) {
+      toast.error("Erro ao salvar: " + err.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 bg-foreground/30 flex items-center justify-center p-4" onClick={onClose}>
+      <form
+        onSubmit={submit}
+        onClick={(e) => e.stopPropagation()}
+        className="w-full max-w-md bg-card rounded-2xl p-6 space-y-4 border border-border max-h-[90vh] overflow-y-auto"
+      >
+        <div className="flex justify-between items-center">
+          <h3 className="text-lg font-semibold">Editar produção</h3>
+          <button type="button" onClick={onClose} className="text-2xl leading-none text-muted-foreground hover:text-foreground">×</button>
+        </div>
+
+        <div>
+          <label className="text-sm font-medium">Nome da peça</label>
+          <input value={name} onChange={(e) => setName(e.target.value)} className="mt-1 w-full h-10 px-3 rounded-lg border border-input bg-background" required />
+        </div>
+
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="text-sm font-medium">Cliente <span className="text-xs text-muted-foreground">(opcional)</span></label>
+            <input
+              list="edit-clientes-list"
+              value={client}
+              onChange={(e) => setClient(e.target.value)}
+              placeholder="Cadastrado ou avulso"
+              className="mt-1 w-full h-10 px-3 rounded-lg border border-input bg-background"
+            />
+            <datalist id="edit-clientes-list">
+              {data.customers.map((c) => <option key={c.id} value={c.name} />)}
+            </datalist>
+          </div>
+          <div>
+            <label className="text-sm font-medium">Início</label>
+            <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="mt-1 w-full h-10 px-3 rounded-lg border border-input bg-background" />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="text-sm font-medium">Horas de impressão</label>
+            <input
+              type="text"
+              inputMode="decimal"
+              value={estimatedHours}
+              onChange={(e) => setEstimatedHours(e.target.value)}
+              className="mt-1 w-full h-10 px-3 rounded-lg border border-input bg-background"
+            />
+          </div>
+          <div>
+            <label className="text-sm font-medium">Filamento total (g)</label>
+            <input
+              type="number"
+              step="0.1"
+              value={filamentGrams}
+              onChange={(e) => setFilamentGrams(e.target.value)}
+              className="mt-1 w-full h-10 px-3 rounded-lg border border-input bg-background"
+            />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="text-sm font-medium">Custo (R$)</label>
+            <input type="number" step="0.01" value={productionCost} onChange={(e) => setProductionCost(e.target.value)} className="mt-1 w-full h-10 px-3 rounded-lg border border-input bg-background" />
+          </div>
+          <div>
+            <label className="text-sm font-medium">Preço (R$)</label>
+            <input type="number" step="0.01" value={suggestedPrice} onChange={(e) => setSuggestedPrice(e.target.value)} className="mt-1 w-full h-10 px-3 rounded-lg border border-input bg-background" />
+          </div>
+        </div>
+
+        <div className="text-xs text-muted-foreground bg-muted/40 rounded-lg p-3">
+          A composição de filamentos (quais filamentos e grams individuais) é definida na criação e não pode ser editada. Para alterar, exclua e recrie a produção.
+        </div>
+
+        <div className="flex gap-2 justify-end pt-2">
+          <button type="button" onClick={onClose} className="h-10 px-4 rounded-lg border border-input text-sm">Cancelar</button>
+          <button type="submit" disabled={saving} className="h-10 px-4 rounded-lg bg-primary text-primary-foreground text-sm font-medium disabled:opacity-60">
+            {saving ? "Salvando..." : "Salvar"}
+          </button>
         </div>
       </form>
     </div>

@@ -11,10 +11,13 @@ interface StoreCtx {
   removeTransaction: (id: string) => Promise<void>;
   addProduction: (p: Omit<ProductionItem, "id">) => Promise<void>;
   updateProductionStatus: (id: string, status: ProductionItem["status"]) => Promise<void>;
+  updateProduction: (id: string, patch: any) => Promise<void>;
   removeProduction: (id: string) => Promise<void>;
   addSale: (s: Omit<Sale, "id" | "total">) => Promise<void>;
+  updateSale: (id: string, patch: any) => Promise<void>;
   removeSale: (id: string) => Promise<void>;
   removeStockItem: (id: string) => Promise<void>;
+  updateStockItem: (id: string, patch: any) => Promise<void>;
   updateSettings: (s: Partial<Settings>) => Promise<void>;
   addFilament: (f: Omit<FilamentStock, "id">) => Promise<void>;
   updateFilament: (id: string, patch: Partial<FilamentStock>) => Promise<void>;
@@ -207,9 +210,27 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     await syncData();
   }, [syncData]);
 
+  const updateProduction = useCallback(async (pid: string, patch: any) => {
+    const payload: any = {};
+    if (patch.name !== undefined) payload.name = patch.name;
+    if (patch.client !== undefined) {
+      payload.client_name = patch.client || null;
+      payload.customer_id = data.customers.find((c) => c.name === patch.client)?.id || null;
+    }
+    if (patch.startDate !== undefined) payload.start_date = patch.startDate;
+    if (patch.estimatedHours !== undefined) payload.estimated_hours = patch.estimatedHours;
+    if (patch.filamentGrams !== undefined) payload.filament_grams_total = patch.filamentGrams;
+    if (patch.productionCost !== undefined) payload.production_cost = patch.productionCost;
+    if (patch.suggestedPrice !== undefined) payload.suggested_price = patch.suggestedPrice;
+    const { error } = await supabase.from("production_items").update(payload).eq("id", pid);
+    if (error) throw error;
+    await syncData();
+  }, [data.customers, syncData]);
+
   const removeProduction = useCallback(async (pid: string) => {
-    await supabase.from("production_filament_usage").delete().eq("production_item_id", pid);
-    await supabase.from("production_items").delete().eq("id", pid);
+    // Usa RPC segura que faz rollback dos filamentos antes de deletar
+    const { error } = await supabase.rpc("delete_production", { p_production_id: pid });
+    if (error) throw error;
     await syncData();
   }, [syncData]);
 
@@ -234,12 +255,49 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   }, [data.customers, syncData]);
 
   const removeSale = useCallback(async (sid: string) => {
-    await supabase.from("sales").delete().eq("id", sid);
+    // Usa RPC segura que restaura estoque e remove transação antes de deletar
+    const { error } = await supabase.rpc("delete_sale", { p_sale_id: sid });
+    if (error) throw error;
     await syncData();
   }, [syncData]);
 
+  const updateSale = useCallback(async (sid: string, patch: any) => {
+    const payload: any = {};
+    if (patch.productName !== undefined) payload.product_name = patch.productName;
+    if (patch.quantity !== undefined) payload.quantity = patch.quantity;
+    if (patch.unitPrice !== undefined) {
+      payload.unit_price = patch.unitPrice;
+      // Recalcula total com a quantidade atual
+      const currentSale = data.sales.find((s) => s.id === sid);
+      const qty = patch.quantity ?? currentSale?.quantity ?? 1;
+      payload.total = qty * patch.unitPrice;
+    }
+    if (patch.client !== undefined) {
+      const custId = data.customers.find((c) => c.name === patch.client)?.id || null;
+      payload.customer_id = custId;
+      payload.client_name = custId ? null : (patch.client || null);
+    }
+    if (patch.paymentMethod !== undefined) payload.payment_method = patch.paymentMethod;
+    if (patch.date !== undefined) payload.date = patch.date;
+    const { error } = await supabase.from("sales").update(payload).eq("id", sid);
+    if (error) throw error;
+    await syncData();
+  }, [data.sales, data.customers, syncData]);
+
   const removeStockItem = useCallback(async (itemId: string) => {
-    const { error } = await supabase.from("stock_items").delete().eq("id", itemId);
+    // Usa RPC segura que faz rollback dos filamentos antes de deletar
+    const { error } = await supabase.rpc("delete_stock_item", { p_stock_item_id: itemId });
+    if (error) throw error;
+    await syncData();
+  }, [syncData]);
+
+  const updateStockItem = useCallback(async (itemId: string, patch: any) => {
+    const payload: any = {};
+    if (patch.name !== undefined) payload.name = patch.name;
+    if (patch.quantity !== undefined) payload.quantity = patch.quantity;
+    if (patch.productionCost !== undefined) payload.production_cost = patch.productionCost;
+    if (patch.suggestedPrice !== undefined) payload.suggested_price = patch.suggestedPrice;
+    const { error } = await supabase.from("stock_items").update(payload).eq("id", itemId);
     if (error) throw error;
     await syncData();
   }, [syncData]);
@@ -350,8 +408,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       value={{
         data,
         addTransaction, removeTransaction,
-        addProduction, updateProductionStatus, removeProduction,
-        addSale, removeSale, removeStockItem,
+        addProduction, updateProductionStatus, updateProduction, removeProduction,
+        addSale, updateSale, removeSale,
+        removeStockItem, updateStockItem,
         updateSettings,
         addFilament, updateFilament, removeFilament,
         addCustomer, updateCustomer, removeCustomer,
