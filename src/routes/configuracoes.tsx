@@ -1,9 +1,10 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { Protected } from "@/components/layout/Protected";
 import { PageHeader } from "@/components/layout/AppLayout";
 import { useStore, formatBRL } from "@/lib/store";
+import { useAuth } from "@/lib/auth";
 import { useState, useEffect } from "react";
-import { Save, RotateCcw } from "lucide-react";
+import { Save, RotateCcw, ShieldOff } from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/configuracoes")({
@@ -15,6 +16,25 @@ export const Route = createFileRoute("/configuracoes")({
 });
 
 function ConfiguracoesPage() {
+  const { isAdmin, ready } = useAuth();
+  const navigate = useNavigate();
+
+  // Proteção real: redireciona colaboradores mesmo se acessarem a URL manualmente
+  useEffect(() => {
+    if (ready && !isAdmin) {
+      toast.error("Acesso restrito. Apenas administradores podem acessar Configurações.");
+      navigate({ to: "/dashboard" });
+    }
+  }, [ready, isAdmin, navigate]);
+
+  if (!isAdmin) {
+    return (
+      <div className="flex flex-col items-center justify-center py-24 gap-4 text-center">
+        <ShieldOff className="h-12 w-12 text-muted-foreground opacity-40" />
+        <p className="text-muted-foreground">Acesso restrito a administradores.</p>
+      </div>
+    );
+  }
   const { data, updateSettings, resetAll } = useStore();
   const [hourlyRate, setHourlyRate] = useState(String(data.settings.hourlyRate));
   const [filamentPricePerGram, setFilamentPricePerGram] = useState(String(data.settings.filamentPricePerGram));

@@ -35,7 +35,7 @@ const nav = [
 ] as const;
 
 export function AppLayout({ children }: { children: ReactNode }) {
-  const { user, logout } = useAuth();
+  const { user, logout, isAdmin } = useAuth();
   const navigate = useNavigate();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -86,7 +86,13 @@ export function AppLayout({ children }: { children: ReactNode }) {
         </div>
 
         <nav className="flex-1 p-2 space-y-0.5 overflow-y-auto">
-          {nav.map((item) => {
+          {nav
+            .filter((item) => {
+              // Esconde "Configurações" para colaboradores
+              if (item.to === "/configuracoes" && !isAdmin) return false;
+              return true;
+            })
+            .map((item) => {
             const active = pathname === item.to || pathname.startsWith(item.to + "/");
             const Icon = item.icon;
             return (
@@ -128,7 +134,15 @@ export function AppLayout({ children }: { children: ReactNode }) {
                 <div className="text-sm font-medium text-sidebar-foreground truncate">
                   {user?.user_metadata?.name || user?.email?.split("@")[0]}
                 </div>
-                <div className="text-xs text-muted-foreground truncate">{user?.email}</div>
+                <div className="flex items-center gap-1.5">
+                  <div className="text-xs text-muted-foreground truncate">{user?.email}</div>
+                  {!isAdmin && (
+                    <span className="text-xs bg-muted text-muted-foreground px-1.5 py-0.5 rounded-full font-medium shrink-0">Colaborador</span>
+                  )}
+                  {isAdmin && (
+                    <span className="text-xs bg-primary/20 text-primary px-1.5 py-0.5 rounded-full font-medium shrink-0">Admin</span>
+                  )}
+                </div>
               </div>
             )}
           </button>

@@ -5,11 +5,23 @@ import { User } from "@supabase/supabase-js";
 interface AuthCtx {
   user: User | null;
   ready: boolean;
+  role: "admin" | "colaborador";
+  isAdmin: boolean;
   login: (email: string, password: string) => Promise<{ ok: boolean; error?: string }>;
   logout: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthCtx | null>(null);
+
+/** Retorna o role do usuário.
+ *  - Se user_metadata.role === "colaborador" → acesso limitado
+ *  - Qualquer outro valor (incluindo "admin" ou ausente) → acesso total
+ *  Isso garante que usuários existentes não percam acesso.
+ */
+function getRole(user: User | null): "admin" | "colaborador" {
+  const r = user?.user_metadata?.role;
+  return r === "colaborador" ? "colaborador" : "admin";
+}
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
@@ -31,10 +43,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const login: AuthCtx["login"] = async (email, password) => {
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) return { ok: false, error: error.message };
     return { ok: true };
   };
@@ -43,8 +52,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await supabase.auth.signOut();
   };
 
+  const role = getRole(user);
+  const isAdmin = role === "admin";
+
   return (
-    <AuthContext.Provider value={{ user, ready, login, logout }}>
+    <AuthContext.Provider value={{ user, ready, role, isAdmin, login, logout }}>
       {children}
     </AuthContext.Provider>
   );

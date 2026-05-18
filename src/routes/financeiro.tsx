@@ -101,7 +101,7 @@ function FinanceiroPage() {
               )}
               {filtered.map((t) => (
                 <tr key={t.id} className="border-t border-border">
-                  <td className="p-3">{new Date(t.date).toLocaleDateString("pt-BR")}</td>
+                  <td className="p-3">{new Date(t.date + 'T12:00:00').toLocaleDateString("pt-BR")}</td>
                   <td className="p-3">
                     {t.type === "entrada" ? (
                       <span className="inline-flex items-center gap-1 text-success font-medium"><ArrowDownCircle className="h-4 w-4" /> Entrada</span>
@@ -140,8 +140,13 @@ function FinanceiroPage() {
 }
 
 function NewTxDialog({ onClose, onSave }: { onClose: () => void; onSave: (t: any) => void }) {
+  // Data local (sem offset UTC) — corrige bug de timezone em UTC-3
+  const localToday = () => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  };
   const [type, setType] = useState<"entrada" | "saida">("saida");
-  const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
+  const [date, setDate] = useState(localToday());
   const [category, setCategory] = useState("Material");
   const [description, setDescription] = useState("");
   const [amount, setAmount] = useState("");
