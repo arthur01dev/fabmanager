@@ -94,7 +94,7 @@ function DashboardPage() {
     <>
       <PageHeader title="Painel" subtitle="Visão geral do seu negócio em tempo real." />
 
-      <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         <StatCard title="Faturamento (mês)" value={formatBRL(stats.monthRevenue)} icon={DollarSign} accent="primary" />
         <StatCard title="Faturamento total" value={formatBRL(stats.totalRevenue)} icon={DollarSign} accent="success" />
         <StatCard title="Vendas" value={String(stats.salesCount)} icon={ShoppingBag} accent="accent" />

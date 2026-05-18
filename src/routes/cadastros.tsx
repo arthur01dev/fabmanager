@@ -110,8 +110,8 @@ function ClientesTab() {
             <thead className="bg-muted/50 text-muted-foreground text-left">
               <tr>
                 <th className="p-3 font-medium">Nome</th>
-                <th className="p-3 font-medium">Contato</th>
-                <th className="p-3 font-medium text-center">Compras</th>
+                <th className="p-3 font-medium hidden sm:table-cell">Contato</th>
+                <th className="p-3 font-medium text-center hidden sm:table-cell">Compras</th>
                 <th className="p-3 font-medium text-right">Total gasto</th>
                 <th className="p-3"></th>
               </tr>
@@ -127,8 +127,8 @@ function ClientesTab() {
                 return (
                   <tr key={c.id} onClick={() => setSelected(c.id)} className={`border-t border-border cursor-pointer hover:bg-muted/30 ${selected === c.id ? "bg-primary/5" : ""}`}>
                     <td className="p-3 font-medium">{c.name}</td>
-                    <td className="p-3 text-muted-foreground">{c.contact || c.email || "—"}</td>
-                    <td className="p-3 text-center">{st?.count || 0}</td>
+                    <td className="p-3 text-muted-foreground hidden sm:table-cell">{c.contact || c.email || "—"}</td>
+                    <td className="p-3 text-center hidden sm:table-cell">{st?.count || 0}</td>
                     <td className="p-3 text-right font-semibold text-success">{formatBRL(st?.total || 0)}</td>
                     <td className="p-3 text-right">
                       <div className="flex items-center justify-end gap-2">
@@ -155,73 +155,84 @@ function ClientesTab() {
           </table>
         </div>
 
-        <div className="bg-card rounded-2xl border border-border p-5">
-          <h4 className="font-semibold mb-3">Dados do cliente</h4>
-          {!sel && <p className="text-sm text-muted-foreground">Selecione um cliente para ver os detalhes.</p>}
-          {sel && (
-            <div className="space-y-3">
-              <div className="flex items-start justify-between gap-2">
-                <div>
-                  <div className="font-semibold text-base">{sel.name}</div>
-                  <div className="text-xs text-muted-foreground mt-0.5">
-                    Cadastrado em {new Date(sel.createdAt).toLocaleDateString("pt-BR")}
-                  </div>
-                </div>
-                <button
-                  onClick={() => setEditCustomer(sel)}
-                  className="text-xs px-2 py-1 rounded border border-input text-muted-foreground hover:text-primary flex items-center gap-1"
-                >
-                  <Pencil className="h-3 w-3" /> Editar
-                </button>
-              </div>
-              <div className="space-y-2 text-sm">
-                {sel.contact && (
-                  <div className="flex items-center gap-2">
-                    <span className="text-muted-foreground w-20 shrink-0">Telefone</span>
-                    <span className="font-medium">{sel.contact}</span>
-                  </div>
-                )}
-                {sel.email && (
-                  <div className="flex items-center gap-2">
-                    <span className="text-muted-foreground w-20 shrink-0">Email</span>
-                    <span className="font-medium">{sel.email}</span>
-                  </div>
-                )}
-                {sel.notes && (
-                  <div className="flex items-start gap-2">
-                    <span className="text-muted-foreground w-20 shrink-0">Obs.</span>
-                    <span className="text-muted-foreground text-xs">{sel.notes}</span>
-                  </div>
-                )}
-                {!sel.contact && !sel.email && !sel.notes && (
-                  <p className="text-xs text-muted-foreground italic">Nenhuma informação adicional cadastrada.</p>
-                )}
-              </div>
-              <div className="grid grid-cols-2 gap-2 text-sm pt-1">
-                <div className="bg-muted/40 rounded-lg p-3">
-                  <div className="text-xs text-muted-foreground">Compras</div>
-                  <div className="font-bold text-lg">{selStats?.count || 0}</div>
-                </div>
-                <div className="bg-muted/40 rounded-lg p-3">
-                  <div className="text-xs text-muted-foreground">Total gasto</div>
-                  <div className="font-bold text-lg text-success">{formatBRL(selStats?.total || 0)}</div>
-                </div>
-              </div>
-              <div className="space-y-2 max-h-64 overflow-y-auto">
-                {selSales.length === 0 && <p className="text-xs text-muted-foreground">Sem compras registradas.</p>}
-                {selSales.map((s) => (
-                  <div key={s.id} className="text-sm border border-border rounded-lg p-2">
-                    <div className="flex justify-between">
-                      <span className="font-medium">{s.productName}</span>
-                      <span className="text-success font-semibold">{formatBRL(s.total)}</span>
+        {/* Detalhes do cliente (Master-Detail responsivo) */}
+        {sel && (
+          <div className="fixed inset-0 z-40 bg-foreground/30 flex items-center justify-center p-4 lg:relative lg:inset-auto lg:z-0 lg:bg-transparent lg:p-0">
+            <div className="absolute inset-0 lg:hidden" onClick={() => setSelected(null)} />
+            
+            <div className="bg-card rounded-2xl border border-border p-5 w-full max-w-md lg:max-w-none shadow-[var(--shadow-card)] lg:shadow-none relative z-10">
+              <button 
+                onClick={() => setSelected(null)} 
+                className="absolute right-4 top-4 text-2xl leading-none text-muted-foreground hover:text-foreground lg:hidden"
+                type="button"
+              >
+                ×
+              </button>
+              <h4 className="font-semibold mb-3">Dados do cliente</h4>
+              <div className="space-y-3">
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <div className="font-semibold text-base">{sel.name}</div>
+                    <div className="text-xs text-muted-foreground mt-0.5">
+                      Cadastrado em {new Date(sel.createdAt).toLocaleDateString("pt-BR")}
                     </div>
-                    <div className="text-xs text-muted-foreground">{new Date(s.date + 'T12:00:00').toLocaleDateString("pt-BR")} · {s.quantity}x · {s.paymentMethod || "—"}</div>
                   </div>
-                ))}
+                  <button
+                    onClick={() => setEditCustomer(sel)}
+                    className="text-xs px-2 py-1 rounded border border-input text-muted-foreground hover:text-primary flex items-center gap-1"
+                  >
+                    <Pencil className="h-3 w-3" /> Editar
+                  </button>
+                </div>
+                <div className="space-y-2 text-sm">
+                  {sel.contact && (
+                    <div className="flex items-center gap-2">
+                      <span className="text-muted-foreground w-20 shrink-0">Telefone</span>
+                      <span className="font-medium">{sel.contact}</span>
+                    </div>
+                  )}
+                  {sel.email && (
+                    <div className="flex items-center gap-2">
+                      <span className="text-muted-foreground w-20 shrink-0">Email</span>
+                      <span className="font-medium">{sel.email}</span>
+                    </div>
+                  )}
+                  {sel.notes && (
+                    <div className="flex items-start gap-2">
+                      <span className="text-muted-foreground w-20 shrink-0">Obs.</span>
+                      <span className="text-muted-foreground text-xs">{sel.notes}</span>
+                    </div>
+                  )}
+                  {!sel.contact && !sel.email && !sel.notes && (
+                    <p className="text-xs text-muted-foreground italic">Nenhuma informação adicional cadastrada.</p>
+                  )}
+                </div>
+                <div className="grid grid-cols-2 gap-2 text-sm pt-1">
+                  <div className="bg-muted/40 rounded-lg p-3">
+                    <div className="text-xs text-muted-foreground">Compras</div>
+                    <div className="font-bold text-lg">{selStats?.count || 0}</div>
+                  </div>
+                  <div className="bg-muted/40 rounded-lg p-3">
+                    <div className="text-xs text-muted-foreground">Total gasto</div>
+                    <div className="font-bold text-lg text-success">{formatBRL(selStats?.total || 0)}</div>
+                  </div>
+                </div>
+                <div className="space-y-2 max-h-64 overflow-y-auto">
+                  {selSales.length === 0 && <p className="text-xs text-muted-foreground">Sem compras registradas.</p>}
+                  {selSales.map((s) => (
+                    <div key={s.id} className="text-sm border border-border rounded-lg p-2">
+                      <div className="flex justify-between">
+                        <span className="font-medium">{s.productName}</span>
+                        <span className="text-success font-semibold">{formatBRL(s.total)}</span>
+                      </div>
+                      <div className="text-xs text-muted-foreground">{new Date(s.date + 'T12:00:00').toLocaleDateString("pt-BR")} · {s.quantity}x · {s.paymentMethod || "—"}</div>
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
-          )}
-        </div>
+          </div>
+        )}
       </div>
 
       {open && (
@@ -312,8 +323,8 @@ function FornecedoresTab() {
             <tr>
               <th className="p-3 font-medium">Nome</th>
               <th className="p-3 font-medium">Contato</th>
-              <th className="p-3 font-medium">Email</th>
-              <th className="p-3 font-medium">Observações</th>
+              <th className="p-3 font-medium hidden sm:table-cell">Email</th>
+              <th className="p-3 font-medium hidden md:table-cell">Observações</th>
               <th className="p-3"></th>
             </tr>
           </thead>
@@ -327,8 +338,8 @@ function FornecedoresTab() {
               <tr key={s.id} className="border-t border-border">
                 <td className="p-3 font-medium">{s.name}</td>
                 <td className="p-3 text-muted-foreground">{s.contact || "—"}</td>
-                <td className="p-3 text-muted-foreground">{s.email || "—"}</td>
-                <td className="p-3 text-muted-foreground text-xs">{s.notes || "—"}</td>
+                <td className="p-3 text-muted-foreground hidden sm:table-cell">{s.email || "—"}</td>
+                <td className="p-3 text-muted-foreground text-xs hidden md:table-cell">{s.notes || "—"}</td>
                 <td className="p-3 text-right">
                   <div className="flex items-center justify-end gap-2">
                     <button
@@ -440,10 +451,10 @@ function FilamentosTab() {
           <thead className="bg-muted/50 text-muted-foreground text-left">
             <tr>
               <th className="p-3 font-medium">Nome</th>
-              <th className="p-3 font-medium">Tipo</th>
-              <th className="p-3 font-medium">Cor</th>
+              <th className="p-3 font-medium hidden sm:table-cell">Tipo</th>
+              <th className="p-3 font-medium hidden sm:table-cell">Cor</th>
               <th className="p-3 font-medium text-right">Estoque (g)</th>
-              <th className="p-3 font-medium text-right">R$ / g</th>
+              <th className="p-3 font-medium text-right hidden sm:table-cell">R$ / g</th>
               <th className="p-3"></th>
             </tr>
           </thead>
@@ -454,8 +465,8 @@ function FilamentosTab() {
             {data.filaments.map((f) => (
               <tr key={f.id} className="border-t border-border">
                 <td className="p-3 font-medium">{f.name}</td>
-                <td className="p-3 text-muted-foreground">{f.type || "—"}</td>
-                <td className="p-3">
+                <td className="p-3 text-muted-foreground hidden sm:table-cell">{f.type || "—"}</td>
+                <td className="p-3 hidden sm:table-cell">
                   <span className="inline-flex items-center gap-2">
                     {f.color && <span className="h-4 w-4 rounded-full border border-border" style={{ background: f.color }} />}
                     <span className="text-muted-foreground">{f.color || "—"}</span>
@@ -464,7 +475,7 @@ function FilamentosTab() {
                 <td className="p-3 text-right">
                   <span className={`font-semibold ${f.grams < 100 ? "text-destructive" : ""}`}>{f.grams.toLocaleString("pt-BR")}g</span>
                 </td>
-                <td className="p-3 text-right text-muted-foreground">{f.pricePerGram ? formatBRL(f.pricePerGram) : <span className="text-xs italic">global</span>}</td>
+                <td className="p-3 text-right text-muted-foreground hidden sm:table-cell">{f.pricePerGram ? formatBRL(f.pricePerGram) : <span className="text-xs italic">global</span>}</td>
                 <td className="p-3 text-right">
                   <div className="flex items-center justify-end gap-2">
                     {addGramsId === f.id ? (

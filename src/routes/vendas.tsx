@@ -69,11 +69,11 @@ function VendasPage() {
               <tr>
                 <th className="p-3 font-medium">Data</th>
                 <th className="p-3 font-medium">Produto</th>
-                <th className="p-3 font-medium">Cliente</th>
+                <th className="p-3 font-medium hidden md:table-cell">Cliente</th>
                 <th className="p-3 font-medium text-center">Qtd</th>
-                <th className="p-3 font-medium text-right">Unit.</th>
+                <th className="p-3 font-medium text-right hidden sm:table-cell">Unit.</th>
                 <th className="p-3 font-medium text-right">Total</th>
-                <th className="p-3 font-medium">Pagamento</th>
+                <th className="p-3 font-medium hidden sm:table-cell">Pagamento</th>
                 <th className="p-3"></th>
               </tr>
             </thead>
@@ -87,11 +87,11 @@ function VendasPage() {
                 <tr key={s.id} className="border-t border-border">
                   <td className="p-3">{new Date(s.date).toLocaleDateString("pt-BR")}</td>
                   <td className="p-3 font-medium">{s.productName}</td>
-                  <td className="p-3 text-muted-foreground">{s.client || "—"}</td>
+                  <td className="p-3 text-muted-foreground hidden md:table-cell">{s.client || "—"}</td>
                   <td className="p-3 text-center">{s.quantity}</td>
-                  <td className="p-3 text-right">{formatBRL(s.unitPrice)}</td>
+                  <td className="p-3 text-right hidden sm:table-cell">{formatBRL(s.unitPrice)}</td>
                   <td className="p-3 text-right font-semibold text-success">{formatBRL(s.total)}</td>
-                  <td className="p-3">
+                  <td className="p-3 hidden sm:table-cell">
                     <span className="text-xs px-2 py-1 rounded-full bg-muted font-medium">{s.paymentMethod || "—"}</span>
                   </td>
                   <td className="p-3 text-right">

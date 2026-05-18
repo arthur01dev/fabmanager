@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState, ReactNode, useCallback } from "react";
 import { supabase } from "./supabase";
+import { useAuth } from "./auth";
 import type {
   AppData, Transaction, ProductionItem, Sale, Settings,
   FilamentStock, Customer, Supplier, FilamentUsage,
@@ -43,6 +44,7 @@ const defaultSettings: Settings = {
 };
 
 export function StoreProvider({ children }: { children: ReactNode }) {
+  const { user } = useAuth();
   const [data, setData] = useState<AppData>({
     transactions: [],
     production: [],
@@ -147,8 +149,21 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
-    syncData();
-  }, [syncData]);
+    if (user) {
+      syncData();
+    } else {
+      setData({
+        transactions: [],
+        production: [],
+        stock: [],
+        sales: [],
+        settings: defaultSettings,
+        filaments: [],
+        customers: [],
+        suppliers: [],
+      });
+    }
+  }, [syncData, user]);
 
   // ── FINANCEIRO ──────────────────────────────────────────────────
   const addTransaction = useCallback(async (t: Omit<Transaction, "id">) => {

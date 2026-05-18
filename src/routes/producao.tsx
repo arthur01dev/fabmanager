@@ -184,10 +184,10 @@ function ProducaoPage() {
               <thead className="bg-muted/50 text-muted-foreground text-left">
                 <tr>
                   <th className="p-3 font-medium">Peça</th>
-                  <th className="p-3 font-medium">Cliente</th>
-                  <th className="p-3 font-medium">Filamentos</th>
-                  <th className="p-3 font-medium text-right">Tempo</th>
-                  <th className="p-3 font-medium text-right">Custo</th>
+                  <th className="p-3 font-medium hidden md:table-cell">Cliente</th>
+                  <th className="p-3 font-medium hidden lg:table-cell">Filamentos</th>
+                  <th className="p-3 font-medium text-right hidden sm:table-cell">Tempo</th>
+                  <th className="p-3 font-medium text-right hidden sm:table-cell">Custo</th>
                   <th className="p-3 font-medium text-right">Preço</th>
                   <th className="p-3 font-medium text-right">Data</th>
                   <th className="p-3"></th>
@@ -204,8 +204,8 @@ function ProducaoPage() {
                 {history.map((p) => (
                   <tr key={p.id} className="border-t border-border hover:bg-muted/20">
                     <td className="p-3 font-medium">{p.name}</td>
-                    <td className="p-3 text-muted-foreground">{p.client || "—"}</td>
-                    <td className="p-3">
+                    <td className="p-3 text-muted-foreground hidden md:table-cell">{p.client || "—"}</td>
+                    <td className="p-3 hidden lg:table-cell">
                       <div className="flex flex-wrap gap-1">
                         {p.filaments && p.filaments.length > 0 ? (
                           p.filaments.map((f, i) => (
@@ -218,8 +218,8 @@ function ProducaoPage() {
                         )}
                       </div>
                     </td>
-                    <td className="p-3 text-right text-muted-foreground">{formatHoursDecimal(p.estimatedHours)}</td>
-                    <td className="p-3 text-right">{formatBRL(p.productionCost)}</td>
+                    <td className="p-3 text-right text-muted-foreground hidden sm:table-cell">{formatHoursDecimal(p.estimatedHours)}</td>
+                    <td className="p-3 text-right hidden sm:table-cell">{formatBRL(p.productionCost)}</td>
                     <td className="p-3 text-right font-semibold text-success">{formatBRL(p.suggestedPrice)}</td>
                     <td className="p-3 text-right text-muted-foreground">
                       {p.startDate

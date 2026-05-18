@@ -57,11 +57,11 @@ function EstoquePage() {
               <tr>
                 <th className="p-3 font-medium">Peça</th>
                 <th className="p-3 font-medium text-center">Qtd</th>
-                <th className="p-3 font-medium text-center">Filamento</th>
-                <th className="p-3 font-medium text-center">Tempo</th>
-                <th className="p-3 font-medium text-right">Custo</th>
+                <th className="p-3 font-medium text-center hidden sm:table-cell">Filamento</th>
+                <th className="p-3 font-medium text-center hidden sm:table-cell">Tempo</th>
+                <th className="p-3 font-medium text-right hidden sm:table-cell">Custo</th>
                 <th className="p-3 font-medium text-right">Preço sugerido</th>
-                <th className="p-3 font-medium text-right">Margem</th>
+                <th className="p-3 font-medium text-right hidden md:table-cell">Margem</th>
                 <th className="p-3"></th>
               </tr>
             </thead>
@@ -79,11 +79,11 @@ function EstoquePage() {
                   <tr key={i.id} className="border-t border-border hover:bg-muted/20">
                     <td className="p-3 font-medium">{i.name}</td>
                     <td className="p-3 text-center"><span className="inline-flex h-7 min-w-7 px-2 items-center justify-center rounded-full bg-primary/10 text-primary font-semibold">{i.quantity}</span></td>
-                    <td className="p-3 text-center text-muted-foreground">{i.filamentGrams || 0}g</td>
-                    <td className="p-3 text-center text-muted-foreground">{i.estimatedHours || 0}h</td>
-                    <td className="p-3 text-right">{formatBRL(i.productionCost)}</td>
+                    <td className="p-3 text-center text-muted-foreground hidden sm:table-cell">{i.filamentGrams || 0}g</td>
+                    <td className="p-3 text-center text-muted-foreground hidden sm:table-cell">{i.estimatedHours || 0}h</td>
+                    <td className="p-3 text-right hidden sm:table-cell">{formatBRL(i.productionCost)}</td>
                     <td className="p-3 text-right font-semibold">{formatBRL(i.suggestedPrice)}</td>
-                    <td className="p-3 text-right text-success">{formatBRL(margin)} <span className="text-xs text-muted-foreground">({marginPct.toFixed(0)}%)</span></td>
+                    <td className="p-3 text-right text-success hidden md:table-cell">{formatBRL(margin)} <span className="text-xs text-muted-foreground">({marginPct.toFixed(0)}%)</span></td>
                     <td className="p-3 text-right">
                       <div className="flex items-center justify-end gap-2">
                         <button

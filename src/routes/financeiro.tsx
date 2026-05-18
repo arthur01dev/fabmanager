@@ -89,8 +89,8 @@ function FinanceiroPage() {
               <tr className="text-left text-muted-foreground">
                 <th className="p-3 font-medium">Data</th>
                 <th className="p-3 font-medium">Tipo</th>
-                <th className="p-3 font-medium">Categoria</th>
-                <th className="p-3 font-medium">Descrição</th>
+                <th className="p-3 font-medium hidden sm:table-cell">Categoria</th>
+                <th className="p-3 font-medium hidden sm:table-cell">Descrição</th>
                 <th className="p-3 font-medium text-right">Valor</th>
                 <th className="p-3"></th>
               </tr>
@@ -109,8 +109,8 @@ function FinanceiroPage() {
                       <span className="inline-flex items-center gap-1 text-destructive font-medium"><ArrowUpCircle className="h-4 w-4" /> Saída</span>
                     )}
                   </td>
-                  <td className="p-3">{t.category}</td>
-                  <td className="p-3 text-muted-foreground">{t.description}</td>
+                  <td className="p-3 font-medium hidden sm:table-cell">{t.category}</td>
+                  <td className="p-3 text-muted-foreground hidden sm:table-cell">{t.description}</td>
                   <td className={`p-3 text-right font-semibold ${t.type === "entrada" ? "text-success" : "text-destructive"}`}>
                     {t.type === "entrada" ? "+" : "−"} {formatBRL(t.amount)}
                   </td>
