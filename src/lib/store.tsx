@@ -474,4 +474,41 @@ export function formatHoursDecimal(h: number): string {
   return `${hh}h ${mm}min`;
 }
 
+export function parseTimeToHours(input: string): number {
+  if (!input) return 0;
+  
+  let cleaned = input.toLowerCase().trim().replace(",", ".");
+  
+  // Caso 1: Formato HH:MM (ex: "1:30" ou "0:45")
+  if (/^\d+:\d+$/.test(cleaned)) {
+    const [hStr, mStr] = cleaned.split(":");
+    const h = parseInt(hStr) || 0;
+    const m = parseInt(mStr) || 0;
+    return h + m / 60;
+  }
+  
+  // Caso 2: Formato com "h" (ex: "1h30", "1h 30min", "1.5h", "2h")
+  const hourMatch = cleaned.match(/(\d+(?:\.\d+)?)\s*h\s*(\d+)?/);
+  if (hourMatch) {
+    const hours = parseFloat(hourMatch[1]) || 0;
+    const minutes = hourMatch[2] ? parseInt(hourMatch[2]) : 0;
+    return hours + minutes / 60;
+  }
+  
+  // Caso 3: Apenas minutos com "min" ou "m" (ex: "30min", "45 m", "15m")
+  const minMatch = cleaned.match(/(\d+)\s*(?:min|m)/);
+  if (minMatch) {
+    const minutes = parseInt(minMatch[1]) || 0;
+    return minutes / 60;
+  }
+  
+  // Caso 4: Número puro (ex: "2.75", "1,5")
+  if (/^\d+(?:\.\d+)?$/.test(cleaned)) {
+    return parseFloat(cleaned) || 0;
+  }
+  
+  const num = parseFloat(cleaned);
+  return isNaN(num) ? 0 : num;
+}
+
 export type { FilamentUsage };

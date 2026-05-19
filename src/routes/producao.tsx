@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { Protected } from "@/components/layout/Protected";
 import { PageHeader } from "@/components/layout/AppLayout";
-import { useStore, formatBRL, formatHoursDecimal } from "@/lib/store";
+import { useStore, formatBRL, formatHoursDecimal, parseTimeToHours } from "@/lib/store";
 import type { FilamentUsage } from "@/lib/types";
 import { useEffect, useMemo, useState, useRef } from "react";
 import { Plus, Trash2, CheckCircle2, Clock, AlertTriangle, History, Search, Pencil } from "lucide-react";
@@ -311,7 +311,7 @@ function NewProductionDialog({ onClose, onSave }: { onClose: () => void; onSave:
   const [name, setName] = useState("");
   const [client, setClient] = useState("");
   const [startDate, setStartDate] = useState(new Date().toISOString().slice(0, 10));
-  const [estimatedHours, setEstimatedHours] = useState("");
+  const [estimatedHoursInput, setEstimatedHoursInput] = useState("");
   const [quantity, setQuantity] = useState(1);
   const [filaments, setFilaments] = useState<FilamentUsage[]>([{ name: "", grams: 0 }]);
   const [productionCost, setProductionCost] = useState("");
@@ -337,7 +337,7 @@ function NewProductionDialog({ onClose, onSave }: { onClose: () => void; onSave:
     return data.customers.filter(c => c.name.toLowerCase().includes(q));
   }, [client, data.customers]);
 
-  const hours = parseFloat(estimatedHours.replace(",", ".")) || 0;
+  const hours = useMemo(() => parseTimeToHours(estimatedHoursInput), [estimatedHoursInput]);
   const totalGrams = filaments.reduce((s, f) => s + (f.grams || 0), 0);
 
   const filamentCost = useMemo(() => {
@@ -358,7 +358,7 @@ function NewProductionDialog({ onClose, onSave }: { onClose: () => void; onSave:
       setProductionCost(calcCost.toFixed(2));
       setSuggestedPrice(calcPrice.toFixed(2));
     }
-  }, [estimatedHours, filaments, autoCalc, quantity, calcCost, calcPrice]);
+  }, [estimatedHoursInput, filaments, autoCalc, quantity, calcCost, calcPrice]);
 
   const addFilamentRow = () => setFilaments([...filaments, { name: "", grams: 0 }]);
   const removeFilamentRow = (i: number) => setFilaments(filaments.filter((_, idx) => idx !== i));
@@ -497,15 +497,19 @@ function NewProductionDialog({ onClose, onSave }: { onClose: () => void; onSave:
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-sm font-medium text-foreground">Tempo (horas decimais)</label>
+              <label className="text-sm font-medium text-foreground">Tempo de impressão</label>
               <input
                 type="text"
-                inputMode="decimal"
-                value={estimatedHours}
-                onChange={(e) => setEstimatedHours(e.target.value)}
-                placeholder="Ex: 2.4"
+                value={estimatedHoursInput}
+                onChange={(e) => setEstimatedHoursInput(e.target.value)}
+                placeholder="Ex: 1h30, 45min ou 2.5"
                 className="mt-1 w-full h-10 px-3 rounded-lg border border-input bg-background text-sm"
               />
+              {estimatedHoursInput.trim() && (
+                <p className="text-[11px] text-muted-foreground mt-1">
+                  Interpretado: <strong className="text-primary">{hours.toFixed(2)}h</strong> ({formatHoursDecimal(hours)})
+                </p>
+              )}
             </div>
             <div>
               <label className="text-sm font-medium text-foreground">Quantidade (peças)</label>
@@ -647,12 +651,14 @@ function EditProductionDialog({ prod, onClose }: { prod: any; onClose: () => voi
   const [name, setName] = useState(prod.name);
   const [client, setClient] = useState(prod.client || "");
   const [startDate, setStartDate] = useState(prod.startDate);
-  const [estimatedHours, setEstimatedHours] = useState(String(prod.estimatedHours));
+  const [estimatedHoursInput, setEstimatedHoursInput] = useState(String(prod.estimatedHours));
   const [filamentGrams, setFilamentGrams] = useState(String(prod.filamentGrams));
   const [quantity, setQuantity] = useState(prod.quantity || 1);
   const [productionCost, setProductionCost] = useState(String(prod.productionCost));
   const [suggestedPrice, setSuggestedPrice] = useState(String(prod.suggestedPrice));
   const [saving, setSaving] = useState(false);
+
+  const hours = useMemo(() => parseTimeToHours(estimatedHoursInput), [estimatedHoursInput]);
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -662,7 +668,7 @@ function EditProductionDialog({ prod, onClose }: { prod: any; onClose: () => voi
         name: name.trim(),
         client: client.trim() || undefined,
         startDate,
-        estimatedHours: parseFloat(estimatedHours.replace(",", ".")) || prod.estimatedHours,
+        estimatedHours: hours || prod.estimatedHours,
         filamentGrams: parseFloat(filamentGrams) || prod.filamentGrams,
         productionCost: parseFloat(productionCost) || prod.productionCost,
         suggestedPrice: parseFloat(suggestedPrice) || prod.suggestedPrice,
@@ -716,14 +722,19 @@ function EditProductionDialog({ prod, onClose }: { prod: any; onClose: () => voi
 
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
           <div>
-            <label className="text-sm font-medium text-foreground">Horas</label>
+            <label className="text-sm font-medium text-foreground">Tempo</label>
             <input
               type="text"
-              inputMode="decimal"
-              value={estimatedHours}
-              onChange={(e) => setEstimatedHours(e.target.value)}
+              value={estimatedHoursInput}
+              onChange={(e) => setEstimatedHoursInput(e.target.value)}
+              placeholder="Ex: 1h30"
               className="mt-1 w-full h-10 px-3 rounded-lg border border-input bg-background text-sm"
             />
+            {estimatedHoursInput.trim() && (
+              <p className="text-[10px] text-muted-foreground mt-0.5">
+                {hours.toFixed(2)}h ({formatHoursDecimal(hours)})
+              </p>
+            )}
           </div>
           <div>
             <label className="text-sm font-medium text-foreground">Lote (g)</label>
