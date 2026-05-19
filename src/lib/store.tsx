@@ -63,13 +63,13 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
     const [resSuppliers, resCustomers, resFilaments, resProd, resStock, resSales, resTx] =
       await Promise.all([
-        supabase.from("suppliers").select("*").order("created_at", { ascending: false }),
-        supabase.from("customers").select("*").order("created_at", { ascending: false }),
-        supabase.from("filaments").select("*").order("created_at", { ascending: false }),
-        supabase.from("production_items").select("*, production_filament_usage(*)").order("created_at", { ascending: false }),
+        supabase.from("suppliers").select("*").order("name", { ascending: true }),
+        supabase.from("customers").select("*").order("name", { ascending: true }),
+        supabase.from("filaments").select("*").order("name", { ascending: true }),
+        supabase.from("production_items").select("*, production_filament_usage(*)").order("start_date", { ascending: false }).order("created_at", { ascending: false }),
         supabase.from("stock_items").select("*").order("created_at", { ascending: false }),
-        supabase.from("sales").select("*").order("created_at", { ascending: false }),
-        supabase.from("transactions").select("*").order("created_at", { ascending: false }), // CORRIGIDO: era 'financial_entries'
+        supabase.from("sales").select("*").order("date", { ascending: false }).order("created_at", { ascending: false }),
+        supabase.from("transactions").select("*").order("date", { ascending: false }).order("created_at", { ascending: false }),
       ]);
 
     const custName = (cid: any) => resCustomers.data?.find((c: any) => c.id === cid)?.name;
