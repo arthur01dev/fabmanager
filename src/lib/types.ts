@@ -29,6 +29,7 @@ export interface ProductionItem {
   filamentGrams: number;
   productionCost: number;
   suggestedPrice: number;
+  quantity: number;
 }
 
 export interface StockItem {

@@ -110,10 +110,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         filamentGrams: Number(p.filament_grams_total),
         productionCost: Number(p.production_cost),
         suggestedPrice: Number(p.suggested_price),
+        quantity: Number(p.quantity || 1),
         filaments: p.production_filament_usage?.map((u: any) => ({
           filamentId: u.filament_id || undefined,
           name: u.filament_name,
-          grams: Number(u.grams),
+          grams: Number(u.grams) / Number(p.quantity || 1),
         })) || [],
       })) || [],
       stock: resStock.data?.map((s: any) => ({
@@ -201,6 +202,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       filament_grams_total: p.filamentGrams,
       production_cost: p.productionCost,
       suggested_price: p.suggestedPrice,
+      quantity: p.quantity,
     });
     if (error) throw error;
 
@@ -210,7 +212,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         production_item_id: newId,
         filament_id: f.filamentId || null,
         filament_name: f.name,
-        grams: f.grams,
+        grams: f.grams * (p.quantity || 1), // Salva gramas totais consumidas no lote
       }));
       await supabase.from("production_filament_usage").insert(usages);
     }
@@ -239,6 +241,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     if (patch.filamentGrams !== undefined) payload.filament_grams_total = patch.filamentGrams;
     if (patch.productionCost !== undefined) payload.production_cost = patch.productionCost;
     if (patch.suggestedPrice !== undefined) payload.suggested_price = patch.suggestedPrice;
+    if (patch.quantity !== undefined) payload.quantity = patch.quantity;
     const { error } = await supabase.from("production_items").update(payload).eq("id", pid);
     if (error) throw error;
     await syncData();

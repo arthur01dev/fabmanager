@@ -146,3 +146,71 @@ GRANT EXECUTE ON FUNCTION delete_stock_full   TO authenticated;
 ALTER TABLE filaments ALTER COLUMN supplier_id DROP NOT NULL;
 ALTER TABLE sales ALTER COLUMN stock_item_id DROP NOT NULL;
 ALTER TABLE production_items ALTER COLUMN customer_id DROP NOT NULL;
+
+-- ============================================================
+-- LOTE DE PRODUÇÃO (NOVA ATUALIZAÇÃO)
+-- ============================================================
+-- 1. Adiciona coluna quantity na tabela production_items
+ALTER TABLE production_items ADD COLUMN IF NOT EXISTS quantity integer DEFAULT 1;
+
+-- 2. Atualiza a RPC finalize_production para suportar a quantidade e unitarizar os custos no estoque
+CREATE OR REPLACE FUNCTION finalize_production(p_production_id uuid)
+RETURNS void LANGUAGE plpgsql SECURITY DEFINER AS $$
+DECLARE
+  v_prod record;
+  v_usage record;
+BEGIN
+  -- Busca a produção correspondente
+  SELECT * INTO v_prod FROM production_items WHERE id = p_production_id;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Produção não encontrada: %', p_production_id;
+  END IF;
+  
+  IF v_prod.status = 'finalizado' THEN
+    RETURN;
+  END IF;
+
+  -- Atualiza o status da produção para finalizado
+  UPDATE production_items 
+  SET status = 'finalizado', end_date = NOW() 
+  WHERE id = p_production_id;
+
+  -- Deduz os filamentos do estoque de filamentos
+  FOR v_usage IN (
+    SELECT filament_id, grams 
+    FROM production_filament_usage 
+    WHERE production_item_id = p_production_id AND filament_id IS NOT NULL
+  ) LOOP
+    UPDATE filaments 
+    SET grams = grams - v_usage.grams 
+    WHERE id = v_usage.filament_id;
+  END LOOP;
+
+  -- Insere no estoque com a quantidade correta e custos/horas unitarizados
+  INSERT INTO stock_items (
+    id,
+    name,
+    quantity,
+    filament_grams,
+    estimated_hours,
+    production_cost,
+    suggested_price,
+    production_item_id,
+    created_at
+  ) VALUES (
+    gen_random_uuid(),
+    v_prod.name,
+    COALESCE(v_prod.quantity, 1),
+    -- Divide os totais da produção pela quantidade para obter valores unitários no estoque
+    ROUND((v_prod.filament_grams_total::numeric / COALESCE(v_prod.quantity, 1)::numeric), 1),
+    ROUND((v_prod.estimated_hours::numeric / COALESCE(v_prod.quantity, 1)::numeric), 2),
+    ROUND((v_prod.production_cost::numeric / COALESCE(v_prod.quantity, 1)::numeric), 2),
+    ROUND((v_prod.suggested_price::numeric / COALESCE(v_prod.quantity, 1)::numeric), 2),
+    p_production_id,
+    NOW()
+  );
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION finalize_production TO authenticated;
+
