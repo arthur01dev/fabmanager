@@ -3,8 +3,8 @@ import { Protected } from "@/components/layout/Protected";
 import { PageHeader } from "@/components/layout/AppLayout";
 import { useStore, formatBRL } from "@/lib/store";
 import type { Sale } from "@/lib/types";
-import { useMemo, useState } from "react";
-import { Plus, Trash2, Pencil } from "lucide-react";
+import { useMemo, useState, useRef, useEffect } from "react";
+import { Plus, Trash2, Pencil, Search } from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/vendas")({
@@ -154,14 +154,27 @@ function NewSaleDialog({ onClose, onSave }: { onClose: () => void; onSave: (s: a
   const [customerId, setCustomerId] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("PIX");
 
-  const onSelectStock = (id: string) => {
-    setStockItemId(id);
-    const it = data.stock.find((s) => s.id === id);
-    if (it) {
-      setProductName(it.name);
-      setUnitPrice(String(it.suggestedPrice));
+  // Estados e ref para o autocomplete de peça do estoque
+  const stockRef = useRef<HTMLDivElement>(null);
+  const [stockSearch, setStockSearch] = useState("");
+  const [showStockSuggestions, setShowStockSuggestions] = useState(false);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (stockRef.current && !stockRef.current.contains(event.target as Node)) {
+        setShowStockSuggestions(false);
+      }
     }
-  };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const filteredStock = useMemo(() => {
+    const q = stockSearch.toLowerCase().trim();
+    const available = data.stock.filter((s) => s.quantity > 0);
+    if (!q) return available;
+    return available.filter((s) => s.name.toLowerCase().includes(q));
+  }, [stockSearch, data.stock]);
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -185,11 +198,9 @@ function NewSaleDialog({ onClose, onSave }: { onClose: () => void; onSave: (s: a
     });
   };
 
-  const availableStock = data.stock.filter((s) => s.quantity > 0);
-
   return (
     <div className="fixed inset-0 z-50 bg-foreground/30 flex items-center justify-center p-4" onClick={onClose}>
-      <form onSubmit={submit} onClick={(e) => e.stopPropagation()} className="w-full max-w-md bg-card rounded-2xl p-6 space-y-4 border border-border">
+      <form onSubmit={submit} onClick={(e) => e.stopPropagation()} className="w-full max-w-md bg-card rounded-2xl p-6 space-y-4 border border-border shadow-[var(--shadow-elegant)]">
         <div className="flex justify-between items-center">
           <h3 className="text-lg font-semibold">Nova venda</h3>
           <button type="button" onClick={onClose} className="text-2xl leading-none text-muted-foreground hover:text-foreground">×</button>
@@ -198,15 +209,90 @@ function NewSaleDialog({ onClose, onSave }: { onClose: () => void; onSave: (s: a
           <label className="text-sm font-medium">Data</label>
           <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="mt-1 w-full h-10 px-3 rounded-lg border border-input bg-background" />
         </div>
-        <div>
-          <label className="text-sm font-medium">Peça do estoque</label>
-          <select value={stockItemId} onChange={(e) => onSelectStock(e.target.value)} className="mt-1 w-full h-10 px-3 rounded-lg border border-input bg-background">
-            <option value="">— Avulso (não está no estoque) —</option>
-            {availableStock.map((s) => (
-              <option key={s.id} value={s.id}>{s.name} (estoque: {s.quantity})</option>
-            ))}
-          </select>
+        
+        {/* Campo Autocomplete de Peça do Estoque */}
+        <div ref={stockRef} className="relative">
+          <label className="text-sm font-medium text-foreground">Peça do estoque</label>
+          <div className="relative mt-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <input
+              value={stockSearch}
+              onChange={(e) => {
+                setStockSearch(e.target.value);
+                setShowStockSuggestions(true);
+                // Se apagar o texto de busca, limpa a seleção
+                if (!e.target.value.trim()) {
+                  setStockItemId("");
+                  setProductName("");
+                  setUnitPrice("");
+                }
+              }}
+              onFocus={() => setShowStockSuggestions(true)}
+              placeholder="Pesquisar peça no estoque..."
+              className="w-full h-10 pl-9 pr-8 rounded-lg border border-input bg-background text-sm"
+              autoComplete="off"
+            />
+            {stockItemId && (
+              <button
+                type="button"
+                onClick={() => {
+                  setStockItemId("");
+                  setStockSearch("");
+                  setProductName("");
+                  setUnitPrice("");
+                }}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground text-sm cursor-pointer"
+                title="Limpar seleção"
+              >
+                ×
+              </button>
+            )}
+          </div>
+          
+          {showStockSuggestions && (
+            <div className="absolute z-50 w-full mt-1 bg-card border border-border rounded-lg shadow-[var(--shadow-card)] max-h-48 overflow-y-auto">
+              <ul className="py-1 text-sm">
+                <li
+                  onClick={() => {
+                    setStockItemId("");
+                    setStockSearch("");
+                    setProductName("");
+                    setUnitPrice("");
+                    setShowStockSuggestions(false);
+                  }}
+                  className="px-3 py-2 cursor-pointer hover:bg-muted text-muted-foreground border-b border-border/50 transition-colors"
+                >
+                  — Avulso (não está no estoque) —
+                </li>
+                {filteredStock.length === 0 ? (
+                  <li className="px-3 py-2 text-xs text-muted-foreground">
+                    Nenhum item encontrado no estoque.
+                  </li>
+                ) : (
+                  filteredStock.map((s) => (
+                    <li
+                      key={s.id}
+                      onClick={() => {
+                        setStockItemId(s.id);
+                        setStockSearch(s.name);
+                        setProductName(s.name);
+                        setUnitPrice(String(s.suggestedPrice));
+                        setShowStockSuggestions(false);
+                      }}
+                      className="px-3 py-2 cursor-pointer hover:bg-muted transition-colors flex items-center justify-between gap-2"
+                    >
+                      <span className="font-medium text-foreground">{s.name}</span>
+                      <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full font-semibold">
+                        Qtd: {s.quantity}
+                      </span>
+                    </li>
+                  ))
+                )}
+              </ul>
+            </div>
+          )}
         </div>
+
         {!stockItemId && (
           <div>
             <label className="text-sm font-medium">Nome do produto</label>
@@ -253,8 +339,8 @@ function NewSaleDialog({ onClose, onSave }: { onClose: () => void; onSave: (s: a
           Total: <span className="font-semibold text-foreground">{formatBRL((parseFloat(unitPrice) || 0) * (parseInt(quantity) || 0))}</span>
         </div>
         <div className="flex gap-2 justify-end pt-2">
-          <button type="button" onClick={onClose} className="h-10 px-4 rounded-lg border border-input text-sm">Cancelar</button>
-          <button type="submit" className="h-10 px-4 rounded-lg bg-primary text-primary-foreground text-sm font-medium">Registrar</button>
+          <button type="button" onClick={onClose} className="h-10 px-4 rounded-lg border border-input text-sm cursor-pointer">Cancelar</button>
+          <button type="submit" className="h-10 px-4 rounded-lg bg-primary text-primary-foreground text-sm font-medium cursor-pointer">Registrar</button>
         </div>
       </form>
     </div>

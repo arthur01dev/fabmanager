@@ -40,6 +40,7 @@ export interface StockItem {
   estimatedHours: number;
   productionCost: number;
   suggestedPrice: number;
+  productionItemId?: string;
 }
 
 export interface FilamentStock {

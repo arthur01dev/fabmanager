@@ -648,20 +648,94 @@ function NewProductionDialog({ onClose, onSave }: { onClose: () => void; onSave:
 // ── EDITAR PRODUÇÃO ──────────────────────────────────────────────────────────
 function EditProductionDialog({ prod, onClose }: { prod: any; onClose: () => void }) {
   const { data, updateProduction } = useStore();
+  const { hourlyRate, marginPct, extraCost, filamentPricePerGram } = data.settings;
   const [name, setName] = useState(prod.name);
   const [client, setClient] = useState(prod.client || "");
   const [startDate, setStartDate] = useState(prod.startDate);
   const [estimatedHoursInput, setEstimatedHoursInput] = useState(String(prod.estimatedHours));
-  const [filamentGrams, setFilamentGrams] = useState(String(prod.filamentGrams));
   const [quantity, setQuantity] = useState(prod.quantity || 1);
+  const [filaments, setFilaments] = useState<FilamentUsage[]>(
+    prod.filaments && prod.filaments.length > 0 ? prod.filaments.map((f: any) => ({ ...f })) : [{ name: "", grams: 0 }]
+  );
   const [productionCost, setProductionCost] = useState(String(prod.productionCost));
   const [suggestedPrice, setSuggestedPrice] = useState(String(prod.suggestedPrice));
+  const [autoCalc, setAutoCalc] = useState(false);
+  const [nameError, setNameError] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [showClientSuggestions, setShowClientSuggestions] = useState(false);
+  const clientRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (clientRef.current && !clientRef.current.contains(event.target as Node)) {
+        setShowClientSuggestions(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const filteredClients = useMemo(() => {
+    const q = client.toLowerCase().trim();
+    if (!q) return data.customers;
+    return data.customers.filter(c => c.name.toLowerCase().includes(q));
+  }, [client, data.customers]);
 
   const hours = useMemo(() => parseTimeToHours(estimatedHoursInput), [estimatedHoursInput]);
+  const totalGrams = filaments.reduce((s, f) => s + (f.grams || 0), 0);
+
+  const filamentCost = useMemo(() => {
+    return filaments.reduce((sum, f) => {
+      if (!f.grams) return sum;
+      const stock = f.filamentId ? data.filaments.find((x) => x.id === f.filamentId) : null;
+      const price = stock?.pricePerGram ?? filamentPricePerGram;
+      return sum + f.grams * price * quantity;
+    }, 0);
+  }, [filaments, data.filaments, filamentPricePerGram, quantity]);
+
+  const calcCost = hours * hourlyRate + filamentCost + extraCost;
+  const calcPrice = calcCost * (1 + marginPct / 100);
+
+  useEffect(() => {
+    if (autoCalc) {
+      setProductionCost(calcCost.toFixed(2));
+      setSuggestedPrice(calcPrice.toFixed(2));
+    }
+  }, [estimatedHoursInput, filaments, autoCalc, quantity, calcCost, calcPrice]);
+
+  const addFilamentRow = () => setFilaments([...filaments, { name: "", grams: 0 }]);
+  const removeFilamentRow = (i: number) => setFilaments(filaments.filter((_, idx) => idx !== i));
+  const updateRow = (i: number, patch: Partial<FilamentUsage>) =>
+    setFilaments(filaments.map((f, idx) => (idx === i ? { ...f, ...patch } : f)));
+
+  const stockWarnings = filaments
+    .map((f, i) => {
+      if (!f.filamentId) return null;
+      const stock = data.filaments.find((x) => x.id === f.filamentId);
+      if (!stock) return null;
+      const needed = f.grams * quantity;
+      if (needed > stock.grams) return { i, name: stock.name, have: stock.grams, need: needed };
+      return null;
+    })
+    .filter(Boolean) as { i: number; name: string; have: number; need: number }[];
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!name.trim()) {
+      setNameError(true);
+      toast.error("Nome da peça é obrigatório");
+      return;
+    }
+    if (quantity < 1) {
+      toast.error("Quantidade deve ser de pelo menos 1 unidade");
+      return;
+    }
+    setNameError(false);
+    const validFils = filaments.filter((f) => f.name && f.grams > 0);
+    if (stockWarnings.length > 0) {
+      if (!confirm("Há filamentos com estoque insuficiente. Continuar mesmo assim?")) return;
+    }
+    
     setSaving(true);
     try {
       await updateProduction(prod.id, {
@@ -669,7 +743,8 @@ function EditProductionDialog({ prod, onClose }: { prod: any; onClose: () => voi
         client: client.trim() || undefined,
         startDate,
         estimatedHours: hours || prod.estimatedHours,
-        filamentGrams: parseFloat(filamentGrams) || prod.filamentGrams,
+        filaments: validFils,
+        filamentGrams: totalGrams * quantity,
         productionCost: parseFloat(productionCost) || prod.productionCost,
         suggestedPrice: parseFloat(suggestedPrice) || prod.suggestedPrice,
         quantity: quantity,
@@ -688,89 +763,229 @@ function EditProductionDialog({ prod, onClose }: { prod: any; onClose: () => voi
       <form
         onSubmit={submit}
         onClick={(e) => e.stopPropagation()}
-        className="w-full max-w-md bg-card rounded-2xl p-4 sm:p-6 space-y-4 border border-border my-auto max-h-[90vh] overflow-y-auto shadow-[var(--shadow-elegant)]"
+        className="w-full max-w-lg bg-card rounded-2xl p-4 sm:p-6 space-y-4 border border-border my-auto max-h-[92vh] flex flex-col shadow-[var(--shadow-elegant)]"
       >
         <div className="flex justify-between items-center mb-1">
           <h3 className="text-lg font-semibold text-foreground">Editar produção</h3>
           <button type="button" onClick={onClose} className="text-2xl leading-none text-muted-foreground hover:text-foreground cursor-pointer">×</button>
         </div>
 
-        <div>
-          <label className="text-sm font-medium text-foreground">Nome da peça</label>
-          <input value={name} onChange={(e) => setName(e.target.value)} className="mt-1 w-full h-10 px-3 rounded-lg border border-input bg-background text-sm" required />
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div className="flex-1 overflow-y-auto pr-1 space-y-4 max-h-[75vh]">
           <div>
-            <label className="text-sm font-medium text-foreground">Cliente <span className="text-xs text-muted-foreground">(opcional)</span></label>
+            <label className="text-sm font-medium text-foreground">Nome da peça *</label>
             <input
-              list="edit-clientes-list"
-              value={client}
-              onChange={(e) => setClient(e.target.value)}
-              placeholder="Cadastrado ou avulso"
-              className="mt-1 w-full h-10 px-3 rounded-lg border border-input bg-background text-sm"
+              required
+              value={name}
+              onChange={(e) => { setName(e.target.value); setNameError(false); }}
+              className={`mt-1 w-full h-10 px-3 rounded-lg border bg-background text-sm ${nameError ? "border-destructive ring-1 ring-destructive" : "border-input"}`}
+              placeholder="Ex: Suporte de parede"
             />
-            <datalist id="edit-clientes-list">
-              {data.customers.map((c) => <option key={c.id} value={c.name} />)}
-            </datalist>
+            {nameError && <p className="text-xs text-destructive mt-1">Campo obrigatório</p>}
           </div>
-          <div>
-            <label className="text-sm font-medium text-foreground">Início</label>
-            <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="mt-1 w-full h-10 px-3 rounded-lg border border-input bg-background text-sm" />
-          </div>
-        </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-          <div>
-            <label className="text-sm font-medium text-foreground">Tempo</label>
-            <input
-              type="text"
-              value={estimatedHoursInput}
-              onChange={(e) => setEstimatedHoursInput(e.target.value)}
-              placeholder="Ex: 1h30"
-              className="mt-1 w-full h-10 px-3 rounded-lg border border-input bg-background text-sm"
-            />
-            {estimatedHoursInput.trim() && (
-              <p className="text-[10px] text-muted-foreground mt-0.5">
-                {hours.toFixed(2)}h ({formatHoursDecimal(hours)})
-              </p>
-            )}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div ref={clientRef} className="relative">
+              <label className="text-sm font-medium text-foreground">Cliente <span className="text-xs text-muted-foreground">(opcional)</span></label>
+              <div className="relative mt-1">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <input
+                  value={client}
+                  onChange={(e) => {
+                    setClient(e.target.value);
+                    setShowClientSuggestions(true);
+                  }}
+                  onFocus={() => setShowClientSuggestions(true)}
+                  placeholder="Pesquisar ou digitar avulso"
+                  className="w-full h-10 pl-9 pr-3 rounded-lg border border-input bg-background text-sm"
+                  autoComplete="off"
+                />
+              </div>
+              
+              {showClientSuggestions && (client.trim() || data.customers.length > 0) && (
+                <div className="absolute z-50 w-full mt-1 bg-card border border-border rounded-lg shadow-[var(--shadow-card)] max-h-48 overflow-y-auto">
+                  {filteredClients.length === 0 ? (
+                    <div className="p-3 text-sm text-muted-foreground flex items-center justify-between">
+                      <span>Nenhum cadastro encontrado.</span>
+                      <span className="text-xs bg-muted px-2 py-1 rounded">Será salvo como avulso</span>
+                    </div>
+                  ) : (
+                    <ul className="py-1 text-sm">
+                      {filteredClients.map((c) => (
+                        <li
+                          key={c.id}
+                          onClick={() => {
+                            setClient(c.name);
+                            setShowClientSuggestions(false);
+                          }}
+                          className="px-3 py-2 cursor-pointer hover:bg-muted transition-colors flex items-center gap-2"
+                        >
+                          <span className="font-medium text-foreground">{c.name}</span>
+                          {c.contact && <span className="text-xs text-muted-foreground ml-auto">{c.contact}</span>}
+                        </li>
+                      ))}
+                      {client.trim() && !data.customers.some(c => c.name.toLowerCase() === client.toLowerCase().trim()) && (
+                        <li 
+                          onClick={() => setShowClientSuggestions(false)}
+                          className="px-3 py-2 border-t border-border cursor-pointer hover:bg-muted transition-colors flex items-center"
+                        >
+                          <span className="text-muted-foreground">Usar avulso: <strong className="text-foreground">{client}</strong></span>
+                        </li>
+                      )}
+                    </ul>
+                  )}
+                </div>
+              )}
+            </div>
+            <div>
+              <label className="text-sm font-medium text-foreground">Início</label>
+              <input
+                type="date"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+                className="mt-1 w-full h-10 px-3 rounded-lg border border-input bg-background text-sm"
+              />
+            </div>
           </div>
-          <div>
-            <label className="text-sm font-medium text-foreground">Lote (g)</label>
-            <input
-              type="number"
-              step="0.1"
-              value={filamentGrams}
-              onChange={(e) => setFilamentGrams(e.target.value)}
-              className="mt-1 w-full h-10 px-3 rounded-lg border border-input bg-background text-sm"
-            />
-          </div>
-          <div className="col-span-2 sm:col-span-1">
-            <label className="text-sm font-medium text-foreground">Qtd</label>
-            <input
-              type="number"
-              min="1"
-              value={quantity}
-              onChange={(e) => setQuantity(Math.max(1, parseInt(e.target.value) || 1))}
-              className="mt-1 w-full h-10 px-3 rounded-lg border border-input bg-background text-sm font-semibold text-primary"
-            />
-          </div>
-        </div>
 
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label className="text-sm font-medium text-foreground">Custo Lote (R$)</label>
-            <input type="number" step="0.01" value={productionCost} onChange={(e) => setProductionCost(e.target.value)} className="mt-1 w-full h-10 px-3 rounded-lg border border-input bg-background text-sm" />
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-sm font-medium text-foreground">Tempo de impressão</label>
+              <input
+                type="text"
+                value={estimatedHoursInput}
+                onChange={(e) => setEstimatedHoursInput(e.target.value)}
+                placeholder="Ex: 1h30, 45min ou 2.5"
+                className="mt-1 w-full h-10 px-3 rounded-lg border border-input bg-background text-sm"
+              />
+              {estimatedHoursInput.trim() && (
+                <p className="text-[11px] text-muted-foreground mt-1">
+                  Interpretado: <strong className="text-primary">{hours.toFixed(2)}h</strong> ({formatHoursDecimal(hours)})
+                </p>
+              )}
+            </div>
+            <div>
+              <label className="text-sm font-medium text-foreground">Quantidade (peças)</label>
+              <input
+                type="number"
+                min="1"
+                value={quantity}
+                onChange={(e) => setQuantity(Math.max(1, parseInt(e.target.value) || 1))}
+                className="mt-1 w-full h-10 px-3 rounded-lg border border-input bg-background text-sm font-semibold text-primary"
+              />
+            </div>
           </div>
-          <div>
-            <label className="text-sm font-medium text-foreground">Preço Lote (R$)</label>
-            <input type="number" step="0.01" value={suggestedPrice} onChange={(e) => setSuggestedPrice(e.target.value)} className="mt-1 w-full h-10 px-3 rounded-lg border border-input bg-background text-sm" />
-          </div>
-        </div>
 
-        <div className="text-xs text-muted-foreground bg-muted/40 rounded-xl p-3.5 border border-border/40">
-          A composição de filamentos (quais filamentos e gramas individuais) é definida na criação e não pode ser editada. Para alterar, exclua e recrie a produção.
+          <div>
+            <div className="flex justify-between items-center mb-2">
+              <label className="text-sm font-medium text-foreground">Filamentos (por unidade)</label>
+              <button type="button" onClick={addFilamentRow} className="text-xs text-primary font-medium flex items-center gap-1 hover:underline cursor-pointer">
+                <Plus className="h-3 w-3" /> Adicionar
+              </button>
+            </div>
+            <div className="space-y-2">
+              {filaments.map((f, i) => {
+                const warn = stockWarnings.find((w) => w.i === i);
+                return (
+                  <div key={i} className="space-y-1 bg-muted/20 p-2 rounded-lg border border-border/40">
+                    <div className="flex gap-2 items-start">
+                      <select
+                        value={f.filamentId || ""}
+                        onChange={(e) => {
+                          const id = e.target.value;
+                          if (id === "__custom__") {
+                            updateRow(i, { filamentId: undefined, name: "" });
+                          } else if (id) {
+                            const fs = data.filaments.find((x) => x.id === id);
+                            updateRow(i, { filamentId: id, name: fs?.name || "" });
+                          } else {
+                            updateRow(i, { filamentId: undefined });
+                          }
+                        }}
+                        className="flex-1 h-10 px-2 rounded-lg border border-input bg-background text-xs sm:text-sm"
+                      >
+                        <option value="">— Selecione do estoque —</option>
+                        {data.filaments.map((fs) => (
+                          <option key={fs.id} value={fs.id}>{fs.name} ({fs.grams}g disp.)</option>
+                        ))}
+                        <option value="__custom__">+ Avulso (sem estoque)</option>
+                      </select>
+                      <input
+                        type="number"
+                        step="0.1"
+                        placeholder="g"
+                        value={f.grams || ""}
+                        onChange={(e) => updateRow(i, { grams: parseFloat(e.target.value) || 0 })}
+                        className="w-20 sm:w-24 h-10 px-2 rounded-lg border border-input bg-background text-sm text-center font-semibold"
+                      />
+                      <button type="button" onClick={() => removeFilamentRow(i)} className="h-10 px-1 sm:px-2 text-muted-foreground hover:text-destructive cursor-pointer">
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
+                    {!f.filamentId && f.grams > 0 && (
+                      <input
+                        placeholder="Nome do filamento (ex: PLA Preto avulso)"
+                        value={f.name}
+                        onChange={(e) => updateRow(i, { name: e.target.value })}
+                        className="w-full h-9 px-2 rounded-lg border border-input bg-background text-xs sm:text-sm"
+                      />
+                    )}
+                    {warn && (
+                      <div className="text-xs text-destructive flex items-center gap-1 font-medium mt-1">
+                        <AlertTriangle className="h-3 w-3" /> Estoque insuficiente: {warn.name} tem {warn.have}g, lote precisa de {warn.need}g.
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+            <div className="text-xs text-muted-foreground mt-2 text-right flex justify-between px-1">
+              <span>Por peça: <strong>{totalGrams.toFixed(1)}g</strong></span>
+              <span>Lote total: <strong className="text-foreground">{(totalGrams * quantity).toFixed(1)}g</strong></span>
+            </div>
+          </div>
+
+          <label className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground cursor-pointer select-none">
+            <input type="checkbox" checked={autoCalc} onChange={(e) => setAutoCalc(e.target.checked)} className="rounded border-input text-primary focus:ring-primary h-4 w-4" />
+            <span>Calcular custos automaticamente</span>
+          </label>
+          
+          {autoCalc && (
+            <div className="text-xs text-muted-foreground bg-muted/40 rounded-xl p-3.5 space-y-1.5 border border-border/40">
+              <div className="flex justify-between">
+                <span>Tempo de impressão total:</span>
+                <span className="font-medium text-foreground">{hours}h × {formatBRL(hourlyRate)}/h = {formatBRL(hours * hourlyRate)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Filamentos do lote ({(totalGrams * quantity).toFixed(1)}g):</span>
+                <span className="font-medium text-foreground">{formatBRL(filamentCost)}</span>
+              </div>
+              {extraCost > 0 && (
+                <div className="flex justify-between">
+                  <span>Outros custos operacionais:</span>
+                  <span className="font-medium text-foreground">{formatBRL(extraCost)}</span>
+                </div>
+              )}
+              <div className="font-semibold text-foreground pt-1.5 border-t border-border mt-1.5 flex justify-between text-sm">
+                <span>Custo total do lote:</span>
+                <span>{formatBRL(calcCost)} <span className="text-[11px] font-normal text-muted-foreground">(unit: {formatBRL(calcCost / quantity)})</span></span>
+              </div>
+              <div className="font-bold text-success flex justify-between text-sm">
+                <span>Preço sugerido do lote:</span>
+                <span>{formatBRL(calcPrice)} <span className="text-[11px] font-medium text-muted-foreground">(unit: {formatBRL(calcPrice / quantity)})</span></span>
+              </div>
+            </div>
+          )}
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-sm font-medium text-foreground">Custo Lote (R$)</label>
+              <input type="number" step="0.01" value={productionCost} disabled={autoCalc} onChange={(e) => setProductionCost(e.target.value)} className="mt-1 w-full h-10 px-3 rounded-lg border border-input bg-background disabled:opacity-60 text-sm" />
+            </div>
+            <div>
+              <label className="text-sm font-medium text-foreground">Preço Lote (R$)</label>
+              <input type="number" step="0.01" value={suggestedPrice} disabled={autoCalc} onChange={(e) => setSuggestedPrice(e.target.value)} className="mt-1 w-full h-10 px-3 rounded-lg border border-input bg-background disabled:opacity-60 text-sm" />
+            </div>
+          </div>
         </div>
 
         <div className="flex gap-2 justify-end pt-3 border-t border-border mt-2">

@@ -124,6 +124,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         estimatedHours: Number(s.estimated_hours),
         productionCost: Number(s.production_cost),
         suggestedPrice: Number(s.suggested_price),
+        productionItemId: s.production_item_id || undefined,
       })) || [],
       sales: resSales.data?.map((s: any) => ({
         id: s.id,
@@ -242,10 +243,41 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     if (patch.productionCost !== undefined) payload.production_cost = patch.productionCost;
     if (patch.suggestedPrice !== undefined) payload.suggested_price = patch.suggestedPrice;
     if (patch.quantity !== undefined) payload.quantity = patch.quantity;
+    
     const { error } = await supabase.from("production_items").update(payload).eq("id", pid);
     if (error) throw error;
+
+    // Sincroniza a tabela production_filament_usage se filamentos ou quantidade mudarem
+    if (patch.filaments !== undefined) {
+      const q = patch.quantity ?? data.production.find((p) => p.id === pid)?.quantity ?? 1;
+      await supabase.from("production_filament_usage").delete().eq("production_item_id", pid);
+      if (patch.filaments && patch.filaments.length > 0) {
+        const usages = patch.filaments.map((f: any) => ({
+          id: crypto.randomUUID(),
+          production_item_id: pid,
+          filament_id: f.filamentId || null,
+          filament_name: f.name,
+          grams: f.grams * q, // Salva gramas totais do lote no banco
+        }));
+        await supabase.from("production_filament_usage").insert(usages);
+      }
+    } else if (patch.quantity !== undefined) {
+      const prod = data.production.find((p) => p.id === pid);
+      if (prod && prod.filaments && prod.filaments.length > 0) {
+        await supabase.from("production_filament_usage").delete().eq("production_item_id", pid);
+        const usages = prod.filaments.map((f: any) => ({
+          id: crypto.randomUUID(),
+          production_item_id: pid,
+          filament_id: f.filamentId || null,
+          filament_name: f.name,
+          grams: f.grams * patch.quantity, // f.grams do frontend já é unitário
+        }));
+        await supabase.from("production_filament_usage").insert(usages);
+      }
+    }
+
     await syncData();
-  }, [data.customers, syncData]);
+  }, [data.customers, data.production, syncData]);
 
   const removeProduction = useCallback(async (pid: string) => {
     const { error } = await supabase.rpc("delete_production", { p_production_id: pid });
