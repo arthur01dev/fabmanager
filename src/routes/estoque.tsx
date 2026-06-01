@@ -242,14 +242,7 @@ function DetailStockDialog({ item, onClose }: { item: StockItem; onClose: () => 
                         <div 
                           className="h-3 w-3 rounded-full border border-border/60 shadow-sm flex-shrink-0"
                           style={{
-                            backgroundColor: color.toLowerCase() === "vermelho" ? "#ef4444" :
-                                            color.toLowerCase() === "azul" ? "#3b82f6" :
-                                            color.toLowerCase() === "preto" ? "#18181b" :
-                                            color.toLowerCase() === "branco" ? "#ffffff" :
-                                            color.toLowerCase() === "verde" ? "#22c55e" :
-                                            color.toLowerCase() === "amarelo" ? "#eab308" :
-                                            color.toLowerCase() === "cinza" ? "#71717a" :
-                                            "#94a3b8"
+                            backgroundColor: fStock?.color || "#94a3b8"
                           }}
                           title={`Cor: ${color}`}
                         />
